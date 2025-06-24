@@ -1,29 +1,18 @@
-import { IdentityApi } from './config';
+import { BackendApi } from './config';
 import { storageService } from './storage.service';
 
-export interface SendOTPRequest {
-  phoneNumber: string;
-}
-
-export interface VerifyOTPRequest {
-  phoneNumber: string;
-  otp: string;
-}
-
-export const authService = {
-  sendOTP: (data: SendOTPRequest) => 
-    IdentityApi.post('/auth/otp/send', data),
-  
-  verifyOTP: (data: VerifyOTPRequest) =>
-    IdentityApi.post('/auth/otp/verify', data),
+export const backendService = {
+  fetchUser: async () => {
+    const response = await BackendApi.get('/user');
+    return response.data;
+  },
 };
 
-
-export const fetchOrganisationLogo = async (organisationId: string) => {
+export const fetchDriverImage = async (organisationId: string, userId: string) => {
   try {
     const token = await storageService.getItem('token');
-    const response = await IdentityApi.get(
-      `/media/org/${organisationId}`,
+    const response = await BackendApi.get(
+      `/media/${organisationId}/Drivers/${userId}?photoField=photo`,
       {
         headers: {
           Accept: 'application/json, text/plain, */*',
@@ -39,7 +28,7 @@ export const fetchOrganisationLogo = async (organisationId: string) => {
       reader.onerror = (error) => reject(error);
     });
   } catch (error: any) {
-    console.error('❌ Error fetching organisation logo:', error);
+    console.error('❌ Error fetching driver image:', error);
     throw new Error(error.response?.data?.message || 'Failed to fetch image');
   }
-}; 
+};

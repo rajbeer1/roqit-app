@@ -1,4 +1,5 @@
 import axios from "axios";
+import { storageService } from "./storage.service";
 const IDENTITY_BASE_URL = process.env.EXPO_PUBLIC_IDENTITY_URL;
 const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -15,7 +16,6 @@ export const BackendApi = axios.create({
   },
 });
 
-// Add request interceptor for auth token
 IdentityApi.interceptors.request.use(
   (config) => {
     return config;
@@ -26,7 +26,12 @@ IdentityApi.interceptors.request.use(
 );
 
 BackendApi.interceptors.request.use(
-  (config) => {
+  async (config) => {
+    const token = await storageService.getItem('token');
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
