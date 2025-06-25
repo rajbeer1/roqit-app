@@ -81,7 +81,7 @@ export const useAuthStore = create<AuthState>()(
           phoneNumber: "",
           token: null,
         });
-        await storageService.removeItem('token');
+        await storageService.clear();
         useUserStore.getState().clearUser();
       },
     }),

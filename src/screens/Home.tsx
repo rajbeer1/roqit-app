@@ -1,23 +1,86 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { useNavigation, CommonActions } from '@react-navigation/native';
-import { storageService } from '../services/api/storage.service';
-import Header from '../components/ui/Header';
-import { useUserStore } from '../store/user.store';
+import React, { useEffect, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  Image,
+  Modal,
+  FlatList,
+} from "react-native";
+import { useNavigation, CommonActions, NavigationProp } from "@react-navigation/native";
+import { storageService } from "../services/api/storage.service";
+import Header from "../components/ui/Header";
+import { useUserStore } from "../store/user.store";
+// @ts-ignore
+import RNSwipeButton from "rn-swipe-button";
+import VehicleSelectorModal from "../components/ui/VehicleSelectorModal";
+import * as Location from "expo-location";
+import type { RootStackParamList } from "../navigation/AppNavigator";
+
+const dummyActiveTrip = {
+  status: "Active",
+  checkIn: "10:30",
+  checkOut: "--:--",
+  date: "Monday, 26 May 2025",
+  assignedTo: "Sanjay Deol",
+  fleetManager: "Vikram Sinha",
+  vehicle: "Passenger",
+  licensePlate: "TS 09 AP 5874",
+  returnVehicle: "09:00pm",
+  hub: "Meetuguda",
+  battery: 65,
+};
 
 const Home = () => {
-  const navigation = useNavigation();
-  const {fetchUser,organisationId,user,operationLat,operationLng,inProgressTrip} = useUserStore();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const { fetchUser, inProgressTrip, user } = useUserStore();
   const loading = useUserStore((state) => state.loading);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [modalVisible, setModalVisible] = useState(false);
+  const [geoErrorModal, setGeoErrorModal] = useState(false);
+  const [geoErrorMsg, setGeoErrorMsg] = useState('');
+
+  const formatTime = (sec: number) => {
+    const h = String(Math.floor(sec / 3600)).padStart(2, "0");
+    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
+    const s = String(sec % 60).padStart(2, "0");
+    return `${h}:${m}:${s}`;
+  };
+
+  let timerDisplay = "00:00:00";
+  if (inProgressTrip && inProgressTrip.tripStartDate) {
+    const startDateStr = inProgressTrip.tripStartDate;
+    const startDate = startDateStr ? new Date(startDateStr) : null;
+    if (startDate) {
+      const diffSec = Math.floor(
+        (currentTime.getTime() - startDate.getTime()) / 1000
+      );
+      timerDisplay = formatTime(diffSec > 0 ? diffSec : 0);
+    }
+  }
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const [tripActive, setTripActive] = useState(!!inProgressTrip);
+  const [checkedInTime, setCheckedInTime] = useState("10:30");
+  const [checkedOutTime, setCheckedOutTime] = useState("--:--");
 
   useEffect(() => {
     (async () => {
-      const token = await storageService.getItem('token');
+      const token = await storageService.getItem("token");
       if (!token) {
         navigation.dispatch(
           CommonActions.reset({
             index: 0,
-            routes: [{ name: 'Login' }],
+            routes: [{ name: "Login" }],
           })
         );
       } else {
@@ -27,6 +90,112 @@ const Home = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation]);
 
+  const trip = tripActive ? dummyActiveTrip : null;
+  const isActive = tripActive;
+
+  const handleCheckIn = async () => {
+    const inGeofence = await checkGeofence();
+    if (inGeofence === true) {
+      setModalVisible(true);
+    } else {
+      setGeoErrorModal(true);
+    }
+  };
+  const handleCheckOut = async () => {
+    const inGeofence = await checkGeofence();
+    if (inGeofence === true) {
+      setTripActive(false);
+      setCheckedOutTime("18:00");
+    } else {
+      setGeoErrorModal(true);
+    }
+  };
+  const handleVehicleSelect = (vehicle: any) => {
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: "VehicleVerification" }],
+      })
+    );
+    setModalVisible(false);
+  };
+
+  function getDistanceFromLatLonInMeters(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ) {
+    function deg2rad(deg: number) {
+      return deg * (Math.PI / 180);
+    }
+    const R = 6371000; // Radius of the earth in meters
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(deg2rad(lat1)) *
+        Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  const getAddressFromCoords = async (latitude: number, longitude: number) => {
+    try {
+      const result = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (result && result[0]) {
+        const address = result[0];
+        return `${address.street || ""} ${address.city || ""} ${address.region || ""} ${address.country || ""}`.trim();
+      }
+      return "Address not found";
+    } catch (error) {
+      console.error("Error getting address:", error);
+      return "Malout";
+    }
+  };
+
+  const checkGeofence = async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      setGeoErrorMsg("Location permission denied. Please enable location to continue.");
+      return false;
+    }
+    let loc;
+    try {
+      loc = await Location.getCurrentPositionAsync({});
+      const addressText = await getAddressFromCoords(loc.coords.latitude, loc.coords.longitude);
+      const addressObj = {
+        latitude: String(loc.coords.latitude),
+        longitude: String(loc.coords.longitude),
+        address: addressText,
+      };
+      await storageService.setItem("userAddress", addressObj);
+    } catch (e) {
+      setGeoErrorMsg("Could not get your location. Please try again.");
+      return false;
+    }
+    const { operationLat, operationLng, geofenceRadius } = useUserStore.getState();
+    if (operationLat == null || operationLng == null || geofenceRadius == null) {
+      setGeoErrorMsg("Operation hub location or geofence not set.");
+      return false;
+    }
+    const dist = getDistanceFromLatLonInMeters(
+      loc.coords.latitude,
+      loc.coords.longitude,
+      operationLat,
+      operationLng
+    );
+    if (dist <= geofenceRadius * 1000) {
+      setGeoErrorMsg("");
+      return true;
+    } else {
+      setGeoErrorMsg("");
+      return false;
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Header />
@@ -34,7 +203,207 @@ const Home = () => {
         {loading ? (
           <ActivityIndicator size="large" color="#1565c0" />
         ) : (
-          <Text style={styles.text}>Home Page</Text>
+          <>
+            <Text style={styles.greeting}>Good Morning! {user?.firstName}</Text>
+            <View
+              style={[
+                styles.statusCard,
+                isActive ? styles.activeCard : styles.inactiveCard,
+              ]}
+            >
+              <View style={styles.statusRow}>
+                <Text style={styles.statusLabel}>Status</Text>
+                <View style={styles.statusDotRow}>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      { backgroundColor: isActive ? "#00994C" : "#B71C1C" },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.statusText,
+                      { color: isActive ? "#00994C" : "#B71C1C" },
+                    ]}
+                  >
+                    {isActive ? "Active" : "Offline"}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.timer}>
+                {isActive ? timerDisplay : "00:00:00"}
+              </Text>
+              <View style={styles.checkRow}>
+                <Text style={styles.checkText}>
+                  {isActive ? checkedInTime : "--:--"}
+                </Text>
+                <Text style={styles.checkLabel}>Check in</Text>
+                <View style={{ flex: 1 }} />
+                <Text style={styles.checkText}>
+                  {isActive ? checkedOutTime : "--:--"}
+                </Text>
+                <Text style={styles.checkLabel}>Check out</Text>
+              </View>
+              <Text
+                style={styles.dateText}
+              >{`${new Date().getDate()}-${new Date().getMonth()}-${new Date().getFullYear()}`}</Text>
+              <View style={styles.slideRow}>
+                {isActive ? (
+                  <RNSwipeButton
+                    containerStyles={{
+                      flex: 1,
+                      backgroundColor: "transparent",
+                    }}
+                    height={44}
+                    width={260}
+                    railBackgroundColor="#e8f8f2"
+                    thumbIconBackgroundColor="#111"
+                    thumbIconComponent={() => (
+                      <Text style={{ fontSize: 28, color: "#fff" }}>
+                        {"\u2190"}
+                      </Text>
+                    )}
+                    title="Slide Arrow Check Out"
+                    titleStyles={{
+                      color: "#00994C",
+                      fontWeight: "600",
+                      fontSize: 16,
+                    }}
+                    onSwipeSuccess={handleCheckOut}
+                    railFillBackgroundColor="#00994C"
+                    railFillBorderColor="#00994C"
+                    shouldResetAfterSuccess={true}
+                  />
+                ) : (
+                  <RNSwipeButton
+                    containerStyles={{
+                      flex: 1,
+                      backgroundColor: "transparent",
+                    }}
+                    height={44}
+                    width={260}
+                    railBackgroundColor="#fff"
+                    thumbIconBackgroundColor="#111"
+                    thumbIconComponent={() => (
+                      <Text style={{ fontSize: 28, color: "#fff" }}>
+                        {"\u2192"}
+                      </Text>
+                    )}
+                    title="Slide Arrow Check In"
+                    titleStyles={{
+                      color: "#888",
+                      fontWeight: "600",
+                      fontSize: 16,
+                    }}
+                    onSwipeSuccess={handleCheckIn}
+                    railFillBackgroundColor="#00994C"
+                    railFillBorderColor="#00994C"
+                    shouldResetAfterSuccess={true}
+                  />
+                )}
+              </View>
+            </View>
+            {!isActive && (
+              <Text style={styles.swipeText}>Swipe right to Check In</Text>
+            )}
+            {isActive && trip && (
+              <View style={styles.tripCard}>
+                <View style={styles.tripHeaderRow}>
+                  <View style={styles.statusActiveTag}>
+                    <Text style={styles.statusActiveTagText}>
+                      Status: Active
+                    </Text>
+                  </View>
+                  <Text style={styles.hubText}>HUB: {trip.hub}</Text>
+                  <View style={styles.batteryRow}>
+                    <Text style={styles.batteryText}>Battery: </Text>
+                    <Text style={styles.batteryText}>{trip.battery}%</Text>
+                  </View>
+                  {/* <TouchableOpacity style={styles.helpBtn}><Text style={styles.helpBtnText}>Help</Text></TouchableOpacity> */}
+                </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 8,
+                    marginLeft: 10,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.tripInfo}>
+                      <Text style={styles.tripInfoLabel}>Assigned to:</Text>{" "}
+                      {trip.assignedTo}
+                    </Text>
+                    <Text style={styles.tripInfo}>
+                      <Text style={styles.tripInfoLabel}>Fleet Manager:</Text>{" "}
+                      {trip.fleetManager}
+                    </Text>
+                    <Text style={styles.tripInfo}>
+                      <Text style={styles.tripInfoLabel}>Vehicle:</Text>{" "}
+                      {trip.vehicle}
+                    </Text>
+                    <Text style={styles.tripInfo}>
+                      <Text style={styles.tripInfoLabel}>License Plate:</Text>{" "}
+                      {trip.licensePlate}
+                    </Text>
+                    <Text style={styles.tripInfo}>
+                      <Text style={styles.tripInfoLabel}>Return Vehicle:</Text>{" "}
+                      {trip.returnVehicle}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+            <VehicleSelectorModal
+              visible={modalVisible}
+              onClose={() => setModalVisible(false)}
+              onVehicleSelected={handleVehicleSelect}
+            />
+            <Modal visible={geoErrorModal} transparent animationType="fade">
+              <View
+                style={{
+                  flex: 1,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: "rgba(0,0,0,0.2)",
+                }}
+              >
+                <View
+                  style={{
+                    backgroundColor: "#fff",
+                    borderRadius: 20,
+                    padding: 28,
+                    alignItems: "center",
+                    width: 300,
+                  }}
+                >
+                  <Text
+                    style={{ fontSize: 70, color: "#F44336", marginBottom: 10 }}
+                  >
+                    ⚠️
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 17,
+                      color: "#888792",
+                      textAlign: "center",
+                      marginBottom: 10,
+                    }}
+                  >
+                    {geoErrorMsg || (
+                      <>You are not in the operation HUB to <Text style={{ color: "#1565c0" }}>Clock</Text></>
+                    )}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setGeoErrorModal(false)}
+                    style={{ position: "absolute", top: 10, right: 10 }}
+                  >
+                    <Text style={{ fontSize: 28, color: "#222" }}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+          </>
         )}
       </View>
     </View>
@@ -44,18 +413,259 @@ const Home = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f6f8f9',
+    backgroundColor: "#f6f8f9",
   },
   content: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingTop: 8,
   },
-  text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#222',
+  greeting: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginTop: 8,
+    marginBottom: 12,
+    color: "#222",
+    textAlign: "center",
+  },
+  statusCard: {
+    width: "100%",
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: "#bdbdbd",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  activeCard: {
+    backgroundColor: "#e8f8f2",
+    borderColor: "#00994C",
+  },
+  inactiveCard: {
+    backgroundColor: "#e0e0e0",
+    borderColor: "#bdbdbd",
+  },
+  statusRow: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  statusLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#222",
+  },
+  statusDotRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 6,
+  },
+  statusText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  timer: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#222",
+    textAlign: "center",
+    marginVertical: 8,
+  },
+  checkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  checkText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#222",
+    marginRight: 4,
+  },
+  checkLabel: {
+    fontSize: 12,
+    color: "#888",
+    marginRight: 16,
+  },
+  dateText: {
+    fontSize: 15,
+    color: "#222",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  slideRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+    marginBottom: 2,
+  },
+  slideBtnActive: {
+    width: 48,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#111",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  slideBtnInactive: {
+    width: 48,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#111",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  slideArrow: {
+    fontSize: 28,
+    color: "#fff",
+  },
+  slideBoxActive: {
+    flex: 1,
+    backgroundColor: "#00994C",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    height: 40,
+  },
+  slideBoxInactive: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    height: 40,
+    borderWidth: 1,
+    borderColor: "#bdbdbd",
+  },
+  slideTextActive: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  slideTextInactive: {
+    color: "#888",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  swipeText: {
+    fontSize: 18,
+    color: "#888",
+    textAlign: "center",
+    marginTop: 32,
+  },
+  tripCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  tripHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  statusActiveTag: {
+    backgroundColor: "#e8f8f2",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginRight: 8,
+  },
+  statusActiveTagText: {
+    color: "#00994C",
+    fontWeight: "600",
+    fontSize: 13,
+  },
+  hubText: {
+    fontSize: 13,
+    color: "#222",
+    marginRight: 8,
+  },
+  batteryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 8,
+  },
+  batteryText: {
+    fontSize: 13,
+    color: "#222",
+    marginLeft: 2,
+  },
+  helpBtn: {
+    backgroundColor: "#ff5a5f",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    marginLeft: "auto",
+  },
+  helpBtnText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 13,
+  },
+  tripInfo: {
+    fontSize: 14,
+    color: "#222",
+    marginBottom: 2,
+  },
+  tripInfoLabel: {
+    fontWeight: "600",
+    color: "#222",
+  },
+  unassignBtn: {
+    backgroundColor: "#1565c0",
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    alignSelf: "flex-end",
+    marginTop: 8,
+  },
+  unassignBtnText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  logoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    marginBottom: 2,
+  },
+  logo: {
+    width: 110,
+    height: 38,
+  },
+  bellBtn: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
 });
 
-export default Home; 
+export default Home;

@@ -1,24 +1,35 @@
-import { BackendApi } from './config';
-import { storageService } from './storage.service';
+import { BackendApi } from "./config";
+import { storageService } from "./storage.service";
 
 export const backendService = {
   fetchUser: async () => {
-    const response = await BackendApi.get('/user');
+    const response = await BackendApi.get("/user");
+    return response.data;
+  },
+  fetchUserVehicles: async () => {
+    const response = await BackendApi.get("/user/vehicles");
+    return response.data;
+  },
+  checkInForCargo: async (payload: any) => {
+    const response = await BackendApi.post("/user/trip/assign", payload);
     return response.data;
   },
 };
 
-export const fetchDriverImage = async (organisationId: string, userId: string) => {
+export const fetchDriverImage = async (
+  organisationId: string,
+  userId: string
+) => {
   try {
-    const token = await storageService.getItem('token');
+    const token = await storageService.getItem("token");
     const response = await BackendApi.get(
       `/media/${organisationId}/Drivers/${userId}?photoField=photo`,
       {
         headers: {
-          Accept: 'application/json, text/plain, */*',
+          Accept: "application/json, text/plain, */*",
           Authorization: `Bearer ${token}`,
         },
-        responseType: 'blob',
+        responseType: "blob",
       }
     );
     const reader = new FileReader();
@@ -28,7 +39,6 @@ export const fetchDriverImage = async (organisationId: string, userId: string) =
       reader.onerror = (error) => reject(error);
     });
   } catch (error: any) {
-    console.error('❌ Error fetching driver image:', error);
-    throw new Error(error.response?.data?.message || 'Failed to fetch image');
+    //
   }
 };

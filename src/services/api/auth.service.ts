@@ -1,5 +1,5 @@
-import { IdentityApi } from './config';
-import { storageService } from './storage.service';
+import { IdentityApi } from "./config";
+import { storageService } from "./storage.service";
 
 export interface SendOTPRequest {
   phoneNumber: string;
@@ -11,27 +11,22 @@ export interface VerifyOTPRequest {
 }
 
 export const authService = {
-  sendOTP: (data: SendOTPRequest) => 
-    IdentityApi.post('/auth/otp/send', data),
-  
-  verifyOTP: (data: VerifyOTPRequest) =>
-    IdentityApi.post('/auth/otp/verify', data),
-};
+  sendOTP: (data: SendOTPRequest) => IdentityApi.post("/auth/otp/send", data),
 
+  verifyOTP: (data: VerifyOTPRequest) =>
+    IdentityApi.post("/auth/otp/verify", data),
+};
 
 export const fetchOrganisationLogo = async (organisationId: string) => {
   try {
-    const token = await storageService.getItem('token');
-    const response = await IdentityApi.get(
-      `/media/org/${organisationId}`,
-      {
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          Authorization: `Bearer ${token}`,
-        },
-        responseType: 'blob',
-      }
-    );
+    const token = await storageService.getItem("token");
+    const response = await IdentityApi.get(`/media/org/${organisationId}`, {
+      headers: {
+        Accept: "application/json, text/plain, */*",
+        Authorization: `Bearer ${token}`,
+      },
+      responseType: "blob",
+    });
     const reader = new FileReader();
     reader.readAsDataURL(response.data);
     return new Promise<string>((resolve, reject) => {
@@ -39,7 +34,6 @@ export const fetchOrganisationLogo = async (organisationId: string) => {
       reader.onerror = (error) => reject(error);
     });
   } catch (error: any) {
-    console.error('❌ Error fetching organisation logo:', error);
-    throw new Error(error.response?.data?.message || 'Failed to fetch image');
+    //
   }
-}; 
+};

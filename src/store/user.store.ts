@@ -15,6 +15,7 @@ interface UserStoreState {
   inProgressTrip: any | null;
   organisationId: string | null;
   loading: boolean;
+  geofenceRadius: number | null;
   error: string | null;
   fetchUser: () => Promise<void>;
   setUser: (user: UserType) => void;
@@ -29,6 +30,7 @@ export const useUserStore = create<UserStoreState>()(
       operationLng: null,
       inProgressTrip: null,
       organisationId: null,
+      geofenceRadius:null,
       loading: false,
       error: null,
       fetchUser: async () => {
@@ -48,6 +50,7 @@ export const useUserStore = create<UserStoreState>()(
       setUser: (user: UserType) => {
         const operationLat = user?.operation?.latitude ?? null;
         const operationLng = user?.operation?.longitude ?? null;
+        const geofenceRadius = user?.operation?.geofenceRadius ?? null;
         const organisationId = user?.organisationId ?? null;
         const inProgressTrip = Array.isArray(user?.trips)
           ? user.trips.find((trip: any) => trip.status !== "Complete")
@@ -58,6 +61,7 @@ export const useUserStore = create<UserStoreState>()(
           operationLng,
           inProgressTrip,
           organisationId,
+          geofenceRadius
         });
       },
       clearUser: () => set({
@@ -66,6 +70,7 @@ export const useUserStore = create<UserStoreState>()(
         operationLng: null,
         inProgressTrip: null,
         organisationId: null,
+        geofenceRadius:null,
         loading: false,
         error: null,
       }),

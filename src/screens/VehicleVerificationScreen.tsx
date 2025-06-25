@@ -1,0 +1,323 @@
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+} from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { storageService } from "../services/api/storage.service";
+import Header from "../components/ui/Header";
+import { showErrorToast, showSuccessToast } from "../services/ui/toasts";
+import { backendService } from "../services/api/backend.service";
+import { useUserStore } from "../store/user.store";
+import { CommonActions } from "@react-navigation/native";
+
+const sides = [
+  {
+    key: "front",
+    label: "Front Side",
+    desc: "Click Front View Of Vehicle",
+    icon: require("../../assets/front.png"),
+  },
+  {
+    key: "right",
+    label: "Right Side",
+    desc: "Click Right View Of Vehicle",
+    icon: require("../../assets/right.png"),
+  },
+  {
+    key: "left",
+    label: "Left Side",
+    desc: "Click Left View Of Vehicle",
+    icon: require("../../assets/left.png"),
+  },
+  {
+    key: "back",
+    label: "Back Side",
+    desc: "Click Back View Of Vehicle",
+    icon: require("../../assets/back.png"),
+  },
+];
+
+const VehicleVerificationScreen = ({ navigation, route }: any) => {
+  const [vehicle, setVehicle] = useState<any>(null);
+  const [images, setImages] = useState<{ [key: string]: string | null }>({
+    front: null,
+    frontType: null,
+    right: null,
+    rightType: null,
+    left: null,
+    leftType: null,
+    back: null,
+    backType: null,
+  });
+  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<"checkin" | "checkout">("checkin");
+  const fetchUser = useUserStore((state) => state.fetchUser);
+
+  useEffect(() => {
+    (async () => {
+      const v = await storageService.getItem("selectedVehicle");
+      setVehicle(v);
+      if (route?.params?.mode) setMode(route.params.mode);
+    })();
+  }, []);
+
+  const pickImage = async (side: string) => {
+    const { status: cameraStatus } =
+      await ImagePicker.requestCameraPermissionsAsync();
+    if (cameraStatus !== "granted") {
+      showErrorToast("Camera permission is required to take photos");
+      return;
+    }
+    try {
+      let result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        quality: 0.5,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets[0].base64) {
+        setLoading(true);
+        const base64 = `data:${result.assets[0].mimeType};base64,${result.assets[0].base64}`;
+        setImages((prev) => ({
+          ...prev,
+          [side]: base64 ?? null,
+          [side + "Type"]: result.assets[0].mimeType ?? null,
+        }));
+        setLoading(false);
+      }
+    } catch (error) {
+      showErrorToast("Error picking image");
+    }
+  };
+
+  const canProceed = () => {
+    if (!vehicle) return false;
+    if ((vehicle.usageType || vehicle.type)?.toLowerCase() === "cargo") {
+      return sides.every((s) => images[s.key]);
+    }
+    return true;
+  };
+
+  const handleNext = async () => {
+    if (!canProceed()) {
+      showErrorToast("Please upload all images for cargo vehicles.");
+      return;
+    }
+    await storageService.setItem("vehicleImages", images);
+    if (mode === "checkin") {
+      if (vehicle?.usageType?.toLowerCase() === "cargo") {
+        setLoading(true);
+        try {
+          const address = await storageService.getItem("userAddress");
+          const vehicleId = vehicle.id;
+          const photo = {
+            Front: images.front,
+            FrontType: images.frontType,
+            Right: images.right,
+            RightType: images.rightType,
+            Left: images.left,
+            LeftType: images.leftType,
+            Back: images.back,
+            BackType: images.backType,
+          };
+          const payload = {
+            vehicleId,
+            address,
+            photo,
+          };
+          const res = await backendService.checkInForCargo(payload);
+          await fetchUser();
+          showSuccessToast("Check-in successful!");
+          await storageService.removeItem("vehicleImages");
+          await storageService.removeItem("userAddress");
+          await storageService.removeItem("selectedVehicle");
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{ name: "MainTabs" }],
+            })
+          );
+        } catch (err: any) {
+          showErrorToast(err?.response?.data?.message || "Check-in failed");
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        //
+      }
+    } else {
+      //
+    }
+  };
+
+  return (
+    <>
+      <Header />
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>
+          Click all 4 sides of vehicle for Verification
+        </Text>
+        <View style={styles.grid}>
+          {sides.map((side) => (
+            <React.Fragment key={side.key}>
+              {typeof images[side.key] === "string" && images[side.key] ? (
+                <Image
+                  source={{ uri: images[side.key] as string }}
+                  style={styles.uploadedImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <TouchableOpacity
+                  style={[styles.card, images[side.key] && styles.cardSelected]}
+                  onPress={() => pickImage(side.key)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.iconWrap}>
+                    <Image source={side.icon} style={styles.icon} />
+                  </View>
+                  <Text style={styles.cardLabel}>{side.label}</Text>
+                  <Text style={styles.cardDesc}>{side.desc}</Text>
+                  {images[side.key] && (
+                    <Text style={styles.uploaded}>✓ Uploaded</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </React.Fragment>
+          ))}
+        </View>
+        <TouchableOpacity
+          style={[
+            styles.button,
+            { opacity: canProceed() && !loading ? 1 : 0.5 },
+          ]}
+          onPress={handleNext}
+          disabled={!canProceed() || loading}
+        >
+          <Text style={styles.buttonText}>
+            {vehicle?.usageType === "cargo"
+              ? loading
+                ? "Submitting..."
+                : "Submit"
+              : "Next"}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    paddingBottom: 3,
+    paddingTop: 0,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginVertical: 24,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+  card: {
+    width: 150,
+    height: 150,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    margin: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e0eaff",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  uploadedImage: {
+    width: 150,
+    height: 150,
+    borderRadius: 16,
+    margin: 8,
+    alignSelf: "center",
+    borderWidth: 1,
+    borderColor: "#e0eaff",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardSelected: {
+    borderColor: "#1565c0",
+    backgroundColor: "#eaf4ff",
+  },
+  iconWrap: {
+    backgroundColor: "#eaf4ff",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  icon: {
+    width: 40,
+    height: 40,
+    resizeMode: "contain",
+  },
+  cardLabel: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#222",
+    marginBottom: 2,
+  },
+  cardDesc: {
+    fontSize: 13,
+    color: "#888",
+    textAlign: "center",
+    marginBottom: 2,
+  },
+  uploaded: {
+    color: "#00994C",
+    fontWeight: "bold",
+    marginTop: 4,
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginTop: 8,
+    marginBottom: 18,
+    paddingHorizontal: 8,
+  },
+  infoText: {
+    color: "#888",
+    fontSize: 13,
+  },
+  button: {
+    backgroundColor: "#1877f2",
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    width: "100%",
+    marginTop: 16,
+    shadowColor: "#1877f2",
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 18,
+  },
+});
+
+export default VehicleVerificationScreen;
