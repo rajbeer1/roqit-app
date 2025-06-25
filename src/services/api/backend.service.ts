@@ -14,6 +14,10 @@ export const backendService = {
     const response = await BackendApi.post("/user/trip/assign", payload);
     return response.data;
   },
+  unassignTrip: async (payload: any) => {
+    const response = await BackendApi.post("/user/trip/unassign", payload);
+    return response.data;
+  },
 };
 
 export const fetchDriverImage = async (

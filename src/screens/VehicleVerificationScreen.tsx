@@ -14,28 +14,29 @@ import { showErrorToast, showSuccessToast } from "../services/ui/toasts";
 import { backendService } from "../services/api/backend.service";
 import { useUserStore } from "../store/user.store";
 import { CommonActions } from "@react-navigation/native";
+import OrderDataModal from "../components/ui/OrderDataModal";
 
 const sides = [
   {
-    key: "front",
+    key: "Front",
     label: "Front Side",
     desc: "Click Front View Of Vehicle",
     icon: require("../../assets/front.png"),
   },
   {
-    key: "right",
+    key: "Right",
     label: "Right Side",
     desc: "Click Right View Of Vehicle",
     icon: require("../../assets/right.png"),
   },
   {
-    key: "left",
+    key: "Left",
     label: "Left Side",
     desc: "Click Left View Of Vehicle",
     icon: require("../../assets/left.png"),
   },
   {
-    key: "back",
+    key: "Back",
     label: "Back Side",
     desc: "Click Back View Of Vehicle",
     icon: require("../../assets/back.png"),
@@ -45,18 +46,19 @@ const sides = [
 const VehicleVerificationScreen = ({ navigation, route }: any) => {
   const [vehicle, setVehicle] = useState<any>(null);
   const [images, setImages] = useState<{ [key: string]: string | null }>({
-    front: null,
-    frontType: null,
-    right: null,
-    rightType: null,
-    left: null,
-    leftType: null,
-    back: null,
-    backType: null,
+    Front: null,
+    FrontType: null,
+    Right: null,
+    RightType: null,
+    Left: null,
+    LeftType: null,
+    Back: null,
+    BackType: null,
   });
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"checkin" | "checkout">("checkin");
-  const fetchUser = useUserStore((state) => state.fetchUser);
+  const [orderModalVisible, setOrderModalVisible] = useState(false);
+  const { fetchUser, inProgressTrip } = useUserStore();
 
   useEffect(() => {
     (async () => {
@@ -95,8 +97,11 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
   };
 
   const canProceed = () => {
-    if (!vehicle) return false;
-    if ((vehicle.usageType || vehicle.type)?.toLowerCase() === "cargo") {
+    if (!vehicle && !inProgressTrip) return false;
+    if ((vehicle?.usageType)?.toLowerCase() === "cargo" && mode === "checkin") {
+      return sides.every((s) => images[s.key]);
+    }
+    if (inProgressTrip?.vehicle?.usageType === "cargo" && mode === "checkout") {
       return sides.every((s) => images[s.key]);
     }
     return true;
@@ -115,14 +120,14 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
           const address = await storageService.getItem("userAddress");
           const vehicleId = vehicle.id;
           const photo = {
-            Front: images.front,
-            FrontType: images.frontType,
-            Right: images.right,
-            RightType: images.rightType,
-            Left: images.left,
-            LeftType: images.leftType,
-            Back: images.back,
-            BackType: images.backType,
+            Front: images.Front,
+            FrontType: images.FrontType,
+            Right: images.Right,
+            RightType: images.RightType,
+            Left: images.Left,
+            LeftType: images.LeftType,
+            Back: images.Back,
+            BackType: images.BackType,
           };
           const payload = {
             vehicleId,
@@ -150,9 +155,50 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
         //
       }
     } else {
-      //
+      if (inProgressTrip?.vehicle?.usageType === "passenger") {
+      } else {
+        setOrderModalVisible(true);
+      }
     }
   };
+
+  const handleOrderDataConfirm = async (orders: any, paymentAmount: string) => {
+    try {
+      setLoading(true);
+      try {
+        const location = await storageService.getItem("userAddress");
+        const vehicleImages = await storageService.getItem("vehicleImages");
+        const inProgressTripId = inProgressTrip?.id;
+        const payload = {
+          tripId: inProgressTripId,
+          address: location,
+          photo: vehicleImages,
+          orders: orders,
+          totalCash: paymentAmount,
+        };
+        await backendService.unassignTrip(payload);
+        await fetchUser();
+        showSuccessToast("Check-out successful!");
+        await storageService.removeItem("vehicleImages");
+        await storageService.removeItem("userAddress");
+        await storageService.removeItem("selectedVehicle");
+        setOrderModalVisible(false);
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: "MainTabs" }],
+          })
+        );
+      } catch (err: any) {
+        showErrorToast(err?.response?.data?.message || "Check-out failed");
+      } finally {
+        setLoading(false);
+      }
+    } catch (error) {
+      showErrorToast("Failed to save order data");
+    }
+  };
+
 
   return (
     <>
@@ -198,14 +244,26 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
           disabled={!canProceed() || loading}
         >
           <Text style={styles.buttonText}>
-            {vehicle?.usageType === "cargo"
+            {mode === "checkin"
+              ? vehicle?.usageType === "cargo"
+                ? loading
+                  ? "Checking In..."
+                  : "Check In"
+                : "Next"
+              : inProgressTrip?.vehicle?.usageType === "passenger"
               ? loading
-                ? "Submitting..."
-                : "Submit"
+                ? "Checking Out..."
+                : "Check Out"
               : "Next"}
           </Text>
         </TouchableOpacity>
       </ScrollView>
+      <OrderDataModal
+        visible={orderModalVisible}
+        onConfirm={handleOrderDataConfirm}
+        onClose={() => setOrderModalVisible(false)}
+        loading={loading}
+      />
     </>
   );
 };

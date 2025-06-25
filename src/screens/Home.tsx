@@ -9,7 +9,11 @@ import {
   Modal,
   FlatList,
 } from "react-native";
-import { useNavigation, CommonActions, NavigationProp } from "@react-navigation/native";
+import {
+  useNavigation,
+  CommonActions,
+  NavigationProp,
+} from "@react-navigation/native";
 import { storageService } from "../services/api/storage.service";
 import Header from "../components/ui/Header";
 import { useUserStore } from "../store/user.store";
@@ -40,7 +44,8 @@ const Home = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [modalVisible, setModalVisible] = useState(false);
   const [geoErrorModal, setGeoErrorModal] = useState(false);
-  const [geoErrorMsg, setGeoErrorMsg] = useState('');
+  const [geoErrorMsg, setGeoErrorMsg] = useState("");
+  
 
   const formatTime = (sec: number) => {
     const h = String(Math.floor(sec / 3600)).padStart(2, "0");
@@ -69,10 +74,6 @@ const Home = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const [tripActive, setTripActive] = useState(!!inProgressTrip);
-  const [checkedInTime, setCheckedInTime] = useState("10:30");
-  const [checkedOutTime, setCheckedOutTime] = useState("--:--");
-
   useEffect(() => {
     (async () => {
       const token = await storageService.getItem("token");
@@ -90,23 +91,27 @@ const Home = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation]);
 
-  const trip = tripActive ? dummyActiveTrip : null;
-  const isActive = tripActive;
-
   const handleCheckIn = async () => {
     const inGeofence = await checkGeofence();
     if (inGeofence === true) {
       setModalVisible(true);
     } else {
+      setGeoErrorMsg("You are not in the operation HUB to check in.");
       setGeoErrorModal(true);
     }
   };
   const handleCheckOut = async () => {
     const inGeofence = await checkGeofence();
     if (inGeofence === true) {
-      setTripActive(false);
-      setCheckedOutTime("18:00");
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: "VehicleVerification", params: { mode: "checkout" } }],
+        })
+      );
+
     } else {
+      setGeoErrorMsg("You are not in the operation HUB to check out.");
       setGeoErrorModal(true);
     }
   };
@@ -129,7 +134,7 @@ const Home = () => {
     function deg2rad(deg: number) {
       return deg * (Math.PI / 180);
     }
-    const R = 6371000; // Radius of the earth in meters
+    const R = 6371000;
     const dLat = deg2rad(lat2 - lat1);
     const dLon = deg2rad(lon2 - lon1);
     const a =
@@ -144,14 +149,18 @@ const Home = () => {
 
   const getAddressFromCoords = async (latitude: number, longitude: number) => {
     try {
-      const result = await Location.reverseGeocodeAsync({ latitude, longitude });
+      const result = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude,
+      });
       if (result && result[0]) {
         const address = result[0];
-        return `${address.street || ""} ${address.city || ""} ${address.region || ""} ${address.country || ""}`.trim();
+        return `${address.street || ""} ${address.city || ""} ${
+          address.region || ""
+        } ${address.country || ""}`.trim();
       }
       return "Address not found";
     } catch (error) {
-      console.error("Error getting address:", error);
       return "Malout";
     }
   };
@@ -159,13 +168,18 @@ const Home = () => {
   const checkGeofence = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") {
-      setGeoErrorMsg("Location permission denied. Please enable location to continue.");
+      setGeoErrorMsg(
+        "Location permission denied. Please enable location to continue."
+      );
       return false;
     }
     let loc;
     try {
       loc = await Location.getCurrentPositionAsync({});
-      const addressText = await getAddressFromCoords(loc.coords.latitude, loc.coords.longitude);
+      const addressText = await getAddressFromCoords(
+        loc.coords.latitude,
+        loc.coords.longitude
+      );
       const addressObj = {
         latitude: String(loc.coords.latitude),
         longitude: String(loc.coords.longitude),
@@ -176,8 +190,13 @@ const Home = () => {
       setGeoErrorMsg("Could not get your location. Please try again.");
       return false;
     }
-    const { operationLat, operationLng, geofenceRadius } = useUserStore.getState();
-    if (operationLat == null || operationLng == null || geofenceRadius == null) {
+    const { operationLat, operationLng, geofenceRadius } =
+      useUserStore.getState();
+    if (
+      operationLat == null ||
+      operationLng == null ||
+      geofenceRadius == null
+    ) {
       setGeoErrorMsg("Operation hub location or geofence not set.");
       return false;
     }
@@ -208,7 +227,7 @@ const Home = () => {
             <View
               style={[
                 styles.statusCard,
-                isActive ? styles.activeCard : styles.inactiveCard,
+                inProgressTrip ? styles.activeCard : styles.inactiveCard,
               ]}
             >
               <View style={styles.statusRow}>
@@ -217,38 +236,59 @@ const Home = () => {
                   <View
                     style={[
                       styles.statusDot,
-                      { backgroundColor: isActive ? "#00994C" : "#B71C1C" },
+                      {
+                        backgroundColor: inProgressTrip ? "#00994C" : "#B71C1C",
+                      },
                     ]}
                   />
                   <Text
                     style={[
                       styles.statusText,
-                      { color: isActive ? "#00994C" : "#B71C1C" },
+                      { color: inProgressTrip ? "#00994C" : "#B71C1C" },
                     ]}
                   >
-                    {isActive ? "Active" : "Offline"}
+                    {inProgressTrip ? "Active" : "Offline"}
                   </Text>
                 </View>
               </View>
               <Text style={styles.timer}>
-                {isActive ? timerDisplay : "00:00:00"}
+                {inProgressTrip ? timerDisplay : "00:00:00"}
               </Text>
               <View style={styles.checkRow}>
                 <Text style={styles.checkText}>
-                  {isActive ? checkedInTime : "--:--"}
+                  {inProgressTrip
+                    ? new Date(inProgressTrip.tripStartDate).toLocaleTimeString(
+                        [],
+                        {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }
+                      )
+                    : "--:--"}
                 </Text>
                 <Text style={styles.checkLabel}>Check in</Text>
                 <View style={{ flex: 1 }} />
-                <Text style={styles.checkText}>
-                  {isActive ? checkedOutTime : "--:--"}
-                </Text>
+                <Text style={styles.checkText}>{"--:--"}</Text>
                 <Text style={styles.checkLabel}>Check out</Text>
               </View>
-              <Text
-                style={styles.dateText}
-              >{`${new Date().getDate()}-${new Date().getMonth()}-${new Date().getFullYear()}`}</Text>
+              <Text style={styles.dateText}>{`${
+                inProgressTrip
+                  ? new Date(inProgressTrip.tripStartDate).getDate()
+                  : "--"
+              }-${
+                inProgressTrip
+                  ? new Date(inProgressTrip.tripStartDate).toLocaleString(
+                      "default",
+                      { month: "short" }
+                    )
+                  : "--"
+              }-${
+                inProgressTrip
+                  ? new Date(inProgressTrip.tripStartDate).getFullYear()
+                  : "--"
+              }`}</Text>
               <View style={styles.slideRow}>
-                {isActive ? (
+                {inProgressTrip ? (
                   <RNSwipeButton
                     containerStyles={{
                       flex: 1,
@@ -303,10 +343,10 @@ const Home = () => {
                 )}
               </View>
             </View>
-            {!isActive && (
+            {!inProgressTrip && (
               <Text style={styles.swipeText}>Swipe right to Check In</Text>
             )}
-            {isActive && trip && (
+            {inProgressTrip && (
               <View style={styles.tripCard}>
                 <View style={styles.tripHeaderRow}>
                   <View style={styles.statusActiveTag}>
@@ -314,10 +354,12 @@ const Home = () => {
                       Status: Active
                     </Text>
                   </View>
-                  <Text style={styles.hubText}>HUB: {trip.hub}</Text>
+                  <Text style={styles.hubText}>HUB: {inProgressTrip.hub}</Text>
                   <View style={styles.batteryRow}>
                     <Text style={styles.batteryText}>Battery: </Text>
-                    <Text style={styles.batteryText}>{trip.battery}%</Text>
+                    <Text style={styles.batteryText}>
+                      {inProgressTrip.battery}%
+                    </Text>
                   </View>
                   {/* <TouchableOpacity style={styles.helpBtn}><Text style={styles.helpBtnText}>Help</Text></TouchableOpacity> */}
                 </View>
@@ -332,23 +374,23 @@ const Home = () => {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.tripInfo}>
                       <Text style={styles.tripInfoLabel}>Assigned to:</Text>{" "}
-                      {trip.assignedTo}
+                      {inProgressTrip?.assignedTo}
                     </Text>
                     <Text style={styles.tripInfo}>
                       <Text style={styles.tripInfoLabel}>Fleet Manager:</Text>{" "}
-                      {trip.fleetManager}
+                      {inProgressTrip?.fleetManager}
                     </Text>
                     <Text style={styles.tripInfo}>
                       <Text style={styles.tripInfoLabel}>Vehicle:</Text>{" "}
-                      {trip.vehicle}
+                      {inProgressTrip?.vehicle?.usageType}
                     </Text>
                     <Text style={styles.tripInfo}>
                       <Text style={styles.tripInfoLabel}>License Plate:</Text>{" "}
-                      {trip.licensePlate}
+                      {inProgressTrip?.vehicle?.licensePlate}
                     </Text>
                     <Text style={styles.tripInfo}>
                       <Text style={styles.tripInfoLabel}>Return Vehicle:</Text>{" "}
-                      {trip.returnVehicle}
+                      {inProgressTrip?.returnVehicle}
                     </Text>
                   </View>
                 </View>
@@ -391,7 +433,10 @@ const Home = () => {
                     }}
                   >
                     {geoErrorMsg || (
-                      <>You are not in the operation HUB to <Text style={{ color: "#1565c0" }}>Clock</Text></>
+                      <>
+                        You are not in the operation HUB to{" "}
+                        <Text style={{ color: "#1565c0" }}>Clock</Text>
+                      </>
                     )}
                   </Text>
                   <TouchableOpacity
@@ -487,7 +532,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   checkText: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "600",
     color: "#222",
     marginRight: 4,
