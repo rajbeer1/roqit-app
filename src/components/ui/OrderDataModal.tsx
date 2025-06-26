@@ -169,6 +169,9 @@ const OrderDataModal: React.FC<OrderDataModalProps> = ({
               </Text>
             </View>
           </TouchableOpacity>
+          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <Text style={styles.closeBtnText}>Cancel</Text>
+          </TouchableOpacity>
         </KeyboardWrapper>
       </View>
     </Modal>
@@ -265,6 +268,15 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
     fontSize: 18,
+  },
+  closeBtn: {
+    marginTop: 10,
+    alignSelf: "center",
+  },
+  closeBtnText: {
+    color: "#1565c0",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });
 

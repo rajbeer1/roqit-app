@@ -15,6 +15,7 @@ import { backendService } from "../services/api/backend.service";
 import { useUserStore } from "../store/user.store";
 import { CommonActions } from "@react-navigation/native";
 import OrderDataModal from "../components/ui/OrderDataModal";
+import PaymentProofModal from "../components/ui/PaymentProofModal";
 
 const sides = [
   {
@@ -58,6 +59,7 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"checkin" | "checkout">("checkin");
   const [orderModalVisible, setOrderModalVisible] = useState(false);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const { fetchUser, inProgressTrip } = useUserStore();
 
   useEffect(() => {
@@ -98,7 +100,7 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
 
   const canProceed = () => {
     if (!vehicle && !inProgressTrip) return false;
-    if ((vehicle?.usageType)?.toLowerCase() === "cargo" && mode === "checkin") {
+    if (vehicle?.usageType?.toLowerCase() === "cargo" && mode === "checkin") {
       return sides.every((s) => images[s.key]);
     }
     if (inProgressTrip?.vehicle?.usageType === "cargo" && mode === "checkout") {
@@ -118,21 +120,12 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
         setLoading(true);
         try {
           const address = await storageService.getItem("userAddress");
+          const images = await storageService.getItem("vehicleImages");
           const vehicleId = vehicle.id;
-          const photo = {
-            Front: images.Front,
-            FrontType: images.FrontType,
-            Right: images.Right,
-            RightType: images.RightType,
-            Left: images.Left,
-            LeftType: images.LeftType,
-            Back: images.Back,
-            BackType: images.BackType,
-          };
           const payload = {
             vehicleId,
             address,
-            photo,
+            photo: images,
           };
           const res = await backendService.checkInForCargo(payload);
           await fetchUser();
@@ -152,10 +145,38 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
           setLoading(false);
         }
       } else {
-        //
+        setPaymentModalVisible(true);
       }
     } else {
       if (inProgressTrip?.vehicle?.usageType === "passenger") {
+        setLoading(true);
+        try {
+          const address = await storageService.getItem("userAddress");
+          const images = await storageService.getItem("vehicleImages");
+          const inProgressTripId = inProgressTrip?.id;
+          const payload = {
+            tripId: inProgressTripId,
+            address,
+            photo: images,
+          };
+          await backendService.checkOutForPassenger(payload);
+          await fetchUser();
+          showSuccessToast("Check-out successful!");
+          await storageService.removeItem("vehicleImages");
+          await storageService.removeItem("userAddress");
+          await storageService.removeItem("selectedVehicle");
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{ name: "MainTabs" }],
+            })
+          );
+        } catch (error) {
+          console.log(error);
+          showErrorToast("Check-out failed");
+        } finally {
+          setLoading(false);
+        }
       } else {
         setOrderModalVisible(true);
       }
@@ -176,7 +197,7 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
           orders: orders,
           totalCash: paymentAmount,
         };
-        await backendService.unassignTrip(payload);
+        await backendService.checkOutForCargo(payload);
         await fetchUser();
         showSuccessToast("Check-out successful!");
         await storageService.removeItem("vehicleImages");
@@ -199,6 +220,39 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
     }
   };
 
+  const handlePaymentProofConfirm = async (data: any) => {
+    setLoading(true);
+    try {
+      const address = await storageService.getItem("userAddress");
+      const vehicleImages = await storageService.getItem("vehicleImages");
+      const payload = {
+        vehicleId: vehicle.id,
+        address,
+        photo: vehicleImages,
+        paymentAmount: data.amount,
+        paymentMode: data.paymentMode,
+        paymentProof: data.proofImage,
+        paymentProofType: data.proofType,
+      };
+      await backendService.checkInForPassenger(payload);
+      await fetchUser();
+      showSuccessToast("Check-in successful!");
+      await storageService.removeItem("vehicleImages");
+      await storageService.removeItem("userAddress");
+      await storageService.removeItem("selectedVehicle");
+      setPaymentModalVisible(false);
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: "MainTabs" }],
+        })
+      );
+    } catch (err: any) {
+      showErrorToast(err?.response?.data?.message || "Check-in failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
@@ -263,6 +317,13 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
         onConfirm={handleOrderDataConfirm}
         onClose={() => setOrderModalVisible(false)}
         loading={loading}
+      />
+      <PaymentProofModal
+        visible={paymentModalVisible}
+        onConfirm={handlePaymentProofConfirm}
+        onClose={() => setPaymentModalVisible(false)}
+        loading={loading}
+        defaultLicensePlate={vehicle?.licensePlate || ""}
       />
     </>
   );

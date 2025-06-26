@@ -14,7 +14,15 @@ export const backendService = {
     const response = await BackendApi.post("/user/trip/assign", payload);
     return response.data;
   },
-  unassignTrip: async (payload: any) => {
+  checkOutForCargo: async (payload: any) => {
+    const response = await BackendApi.post("/user/trip/unassign", payload);
+    return response.data;
+  },
+  checkInForPassenger: async (payload: any) => {
+    const response = await BackendApi.post("/user/trip/assign", payload);
+    return response.data;
+  },
+  checkOutForPassenger: async (payload: any) => {
     const response = await BackendApi.post("/user/trip/unassign", payload);
     return response.data;
   },
