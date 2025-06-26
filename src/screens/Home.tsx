@@ -343,7 +343,7 @@ const Home = () => {
                       Status: Active
                     </Text>
                   </View>
-                  <Text style={styles.hubText}>HUB: {inProgressTrip.hub}</Text>
+                  <Text style={styles.hubText}>HUB: {user?.operation?.name}</Text>
                   <View style={styles.batteryRow}>
                     <Text style={styles.batteryText}>Battery: </Text>
                     <Text style={styles.batteryText}>
@@ -363,7 +363,7 @@ const Home = () => {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.tripInfo}>
                       <Text style={styles.tripInfoLabel}>Assigned to:</Text>{" "}
-                      {inProgressTrip?.assignedTo}
+                      {user?.firstName} {user?.lastName}
                     </Text>
                     <Text style={styles.tripInfo}>
                       <Text style={styles.tripInfoLabel}>Fleet Manager:</Text>{" "}
@@ -379,7 +379,15 @@ const Home = () => {
                     </Text>
                     <Text style={styles.tripInfo}>
                       <Text style={styles.tripInfoLabel}>Return Vehicle:</Text>{" "}
-                      {inProgressTrip?.returnVehicle}
+                      {
+                        inProgressTrip?.tripStartDate
+                          ? (() => {
+                              const start = new Date(inProgressTrip.tripStartDate);
+                              const returnTime = new Date(start.getTime() + 8 * 60 * 60 * 1000);
+                              return returnTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            })()
+                          : "--:--"
+                      }
                     </Text>
                   </View>
                 </View>

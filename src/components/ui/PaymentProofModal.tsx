@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import KeyboardWrapper from "./Keyboard";
+import { showErrorToast } from "../../services/ui/toasts";
 
 interface PaymentProofModalProps {
   visible: boolean;
@@ -43,20 +44,36 @@ const PaymentProofModal: React.FC<PaymentProofModalProps> = ({
   const timeStr = now.toLocaleTimeString("en-GB");
 
   const pickImage = async (fromCamera: boolean) => {
-    let result;
-
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") return;
-    result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 0.5,
-      base64: true,
-    });
-    if (!result.canceled && result.assets && result.assets[0].base64) {
-      setProofImage(
-        `data:${result.assets[0].mimeType};base64,${result.assets[0].base64}`
-      );
-      setProofType(result.assets[0].mimeType ?? null);
+    try {
+      let result;
+      if (fromCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== "granted") {
+          showErrorToast("Camera permission is required to take photos");
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ["images"],
+          quality: 0.5,
+          base64: true,
+        });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") return;
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ["images"],
+          quality: 0.5,
+          base64: true,
+        });
+      }
+      if (!result.canceled && result.assets && result.assets[0].base64) {
+        setProofImage(
+          `data:${result.assets[0].mimeType};base64,${result.assets[0].base64}`
+        );
+        setProofType(result.assets[0].mimeType ?? null);
+      }
+    } catch (error) {
+      showErrorToast("Error picking image");
     }
   };
 
@@ -155,25 +172,35 @@ const PaymentProofModal: React.FC<PaymentProofModalProps> = ({
               </TouchableOpacity>
             </View>
             <Text style={[styles.label, { marginTop: 12 }]}>
-              Upload Payment Proof{paymentMode === "upi" && <Text style={styles.required}>*</Text>}
-              <Text style={{ color: "#888", fontSize: 11 }}>
-                (Screenshot, Receipt, etc)
-              </Text>
+              Upload Payment Proof {paymentMode === "upi" && <Text style={styles.required}>*</Text>}
             </Text>
             {proofImage ? (
               <Image source={{ uri: proofImage }} style={styles.proofPreview} />
             ) : (
-              <TouchableOpacity
-                style={styles.uploadButton}
-                onPress={() => pickImage(false)}
-                activeOpacity={0.8}
-              >
-                <Image
-                  source={require("../../../assets/browse.png")}
-                  style={styles.browseIcon}
-                />
-                <Text style={styles.uploadText}>Browse</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                <TouchableOpacity
+                  style={styles.uploadButton}
+                  onPress={() => pickImage(false)}
+                  activeOpacity={0.8}
+                >
+                  <Image
+                    source={require("../../../assets/browse.png")}
+                    style={styles.browseIcon}
+                  />
+                  <Text style={styles.uploadText}>Browse</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.uploadButton}
+                  onPress={() => pickImage(true)}
+                  activeOpacity={0.8}
+                >
+                  <Image
+                    source={require("../../../assets/camera.png")}
+                    style={styles.browseIcon}
+                  />
+                  <Text style={styles.uploadText}>Camera</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </ScrollView>
           <TouchableOpacity
