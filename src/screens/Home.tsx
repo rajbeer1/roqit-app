@@ -39,13 +39,11 @@ const dummyActiveTrip = {
 
 const Home = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const { fetchUser, inProgressTrip, user } = useUserStore();
-  const loading = useUserStore((state) => state.loading);
+  const { fetchUser, inProgressTrip, user, loading } = useUserStore();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [modalVisible, setModalVisible] = useState(false);
   const [geoErrorModal, setGeoErrorModal] = useState(false);
   const [geoErrorMsg, setGeoErrorMsg] = useState("");
-  
 
   const formatTime = (sec: number) => {
     const h = String(Math.floor(sec / 3600)).padStart(2, "0");
@@ -106,10 +104,11 @@ const Home = () => {
       navigation.dispatch(
         CommonActions.reset({
           index: 0,
-          routes: [{ name: "VehicleVerification", params: { mode: "checkout" } }],
+          routes: [
+            { name: "VehicleVerification", params: { mode: "checkout" } },
+          ],
         })
       );
-
     } else {
       setGeoErrorMsg("You are not in the operation HUB to check out.");
       setGeoErrorModal(true);
@@ -298,11 +297,6 @@ const Home = () => {
                     width={260}
                     railBackgroundColor="#e8f8f2"
                     thumbIconBackgroundColor="#111"
-                    thumbIconComponent={() => (
-                      <Text style={{ fontSize: 28, color: "#fff" }}>
-                        {"\u2190"}
-                      </Text>
-                    )}
                     title="Slide Arrow Check Out"
                     titleStyles={{
                       color: "#00994C",
@@ -324,11 +318,6 @@ const Home = () => {
                     width={260}
                     railBackgroundColor="#fff"
                     thumbIconBackgroundColor="#111"
-                    thumbIconComponent={() => (
-                      <Text style={{ fontSize: 28, color: "#fff" }}>
-                        {"\u2192"}
-                      </Text>
-                    )}
                     title="Slide Arrow Check In"
                     titleStyles={{
                       color: "#888",

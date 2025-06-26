@@ -21,25 +21,25 @@ const sides = [
   {
     key: "Front",
     label: "Front Side",
-    desc: "Click Front View Of Vehicle",
+    desc: "Front View Of Vehicle",
     icon: require("../../assets/front.png"),
   },
   {
     key: "Right",
     label: "Right Side",
-    desc: "Click Right View Of Vehicle",
+    desc: "Right View Of Vehicle",
     icon: require("../../assets/right.png"),
   },
   {
     key: "Left",
     label: "Left Side",
-    desc: "Click Left View Of Vehicle",
+    desc: "Left View Of Vehicle",
     icon: require("../../assets/left.png"),
   },
   {
     key: "Back",
     label: "Back Side",
-    desc: "Click Back View Of Vehicle",
+    desc: "Back View Of Vehicle",
     icon: require("../../assets/back.png"),
   },
 ];
@@ -114,13 +114,11 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
       showErrorToast("Please upload all images for cargo vehicles.");
       return;
     }
-    await storageService.setItem("vehicleImages", images);
     if (mode === "checkin") {
       if (vehicle?.usageType?.toLowerCase() === "cargo") {
         setLoading(true);
         try {
           const address = await storageService.getItem("userAddress");
-          const images = await storageService.getItem("vehicleImages");
           const vehicleId = vehicle.id;
           const payload = {
             vehicleId,
@@ -130,7 +128,6 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
           const res = await backendService.checkInForCargo(payload);
           await fetchUser();
           showSuccessToast("Check-in successful!");
-          await storageService.removeItem("vehicleImages");
           await storageService.removeItem("userAddress");
           await storageService.removeItem("selectedVehicle");
           navigation.dispatch(
@@ -152,7 +149,6 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
         setLoading(true);
         try {
           const address = await storageService.getItem("userAddress");
-          const images = await storageService.getItem("vehicleImages");
           const inProgressTripId = inProgressTrip?.id;
           const payload = {
             tripId: inProgressTripId,
@@ -162,7 +158,6 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
           await backendService.checkOutForPassenger(payload);
           await fetchUser();
           showSuccessToast("Check-out successful!");
-          await storageService.removeItem("vehicleImages");
           await storageService.removeItem("userAddress");
           await storageService.removeItem("selectedVehicle");
           navigation.dispatch(
@@ -188,19 +183,17 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
       setLoading(true);
       try {
         const location = await storageService.getItem("userAddress");
-        const vehicleImages = await storageService.getItem("vehicleImages");
         const inProgressTripId = inProgressTrip?.id;
         const payload = {
           tripId: inProgressTripId,
           address: location,
-          photo: vehicleImages,
+          photo: images,
           orders: orders,
           totalCash: paymentAmount,
         };
         await backendService.checkOutForCargo(payload);
         await fetchUser();
         showSuccessToast("Check-out successful!");
-        await storageService.removeItem("vehicleImages");
         await storageService.removeItem("userAddress");
         await storageService.removeItem("selectedVehicle");
         setOrderModalVisible(false);
@@ -224,11 +217,10 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
     setLoading(true);
     try {
       const address = await storageService.getItem("userAddress");
-      const vehicleImages = await storageService.getItem("vehicleImages");
       const payload = {
         vehicleId: vehicle.id,
         address,
-        photo: vehicleImages,
+        photo: images,
         paymentAmount: data.amount,
         paymentMode: data.paymentMode,
         paymentProof: data.proofImage,
@@ -237,7 +229,6 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
       await backendService.checkInForPassenger(payload);
       await fetchUser();
       showSuccessToast("Check-in successful!");
-      await storageService.removeItem("vehicleImages");
       await storageService.removeItem("userAddress");
       await storageService.removeItem("selectedVehicle");
       setPaymentModalVisible(false);
@@ -263,7 +254,7 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
         </Text>
         <View style={styles.grid}>
           {sides.map((side) => (
-            <React.Fragment key={side.key}>
+            <View key={side.key} style={styles.cell}>
               {typeof images[side.key] === "string" && images[side.key] ? (
                 <Image
                   source={{ uri: images[side.key] as string }}
@@ -286,7 +277,7 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
                   )}
                 </TouchableOpacity>
               )}
-            </React.Fragment>
+            </View>
           ))}
         </View>
         <TouchableOpacity
@@ -345,15 +336,23 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "center",
+    justifyContent: "space-between",
     marginBottom: 18,
+    paddingHorizontal: 8,
+  },
+  cell: {
+    width: "48%",
+    aspectRatio: 1,
+    marginBottom: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
   },
   card: {
-    width: 150,
-    height: 150,
+    width: "100%",
+    height: "100%",
     backgroundColor: "#fff",
     borderRadius: 16,
-    margin: 8,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
@@ -364,11 +363,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   uploadedImage: {
-    width: 150,
-    height: 150,
+    width: "100%",
+    height: "100%",
     borderRadius: 16,
-    margin: 8,
-    alignSelf: "center",
     borderWidth: 1,
     borderColor: "#e0eaff",
     shadowColor: "#000",
