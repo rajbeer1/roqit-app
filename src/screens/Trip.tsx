@@ -1,31 +1,21 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Header from '../components/ui/Header';
+import MapView,{PROVIDER_GOOGLE} from 'react-native-maps';
+import { StyleSheet, View } from 'react-native';
 
-const Trip = () => (
-  <View style={styles.container}>
-    <Header />
-    <View style={styles.content}>
-      <Text style={styles.text}>Trip Page</Text>
+export default function App() {
+  return (
+    <View style={styles.container}>
+      <MapView style={styles.map} provider={PROVIDER_GOOGLE} />
     </View>
-  </View>
-);
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f6f8f9',
   },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#222',
+  map: {
+    width: '100%',
+    height: '100%',
   },
 });
-
-export default Trip; 

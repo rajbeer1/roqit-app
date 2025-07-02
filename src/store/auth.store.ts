@@ -60,7 +60,6 @@ export const useAuthStore = create<AuthState>()(
             token: response.data?.auth_token,
           });
           showSuccessToast("user Logged In");
-          // Fetch user after login
           await useUserStore.getState().fetchUser();
           return true;
         } catch (error: any) {

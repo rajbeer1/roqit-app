@@ -90,16 +90,15 @@ const Home = () => {
   }, [navigation]);
 
   const handleCheckIn = async () => {
-    const inGeofence = await checkGeofence();
+    const inGeofence = await checkGeofence("checkin");
     if (inGeofence === true) {
       setModalVisible(true);
     } else {
-      setGeoErrorMsg("You are not in the operation HUB to check in.");
       setGeoErrorModal(true);
     }
   };
   const handleCheckOut = async () => {
-    const inGeofence = await checkGeofence();
+    const inGeofence = await checkGeofence("checkout");
     if (inGeofence === true) {
       navigation.dispatch(
         CommonActions.reset({
@@ -110,7 +109,6 @@ const Home = () => {
         })
       );
     } else {
-      setGeoErrorMsg("You are not in the operation HUB to check out.");
       setGeoErrorModal(true);
     }
   };
@@ -164,7 +162,7 @@ const Home = () => {
     }
   };
 
-  const checkGeofence = async () => {
+  const checkGeofence = async (type: "checkin" | "checkout") => {
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") {
       setGeoErrorMsg(
@@ -209,7 +207,9 @@ const Home = () => {
       setGeoErrorMsg("");
       return true;
     } else {
-      setGeoErrorMsg("");
+      setGeoErrorMsg(
+        `You are not in the operation HUB to ${type === "checkin" ? "check in" : "check out"}.`
+      );
       return false;
     }
   };

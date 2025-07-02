@@ -59,7 +59,10 @@ const PaymentProofModal: React.FC<PaymentProofModalProps> = ({
         });
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== "granted") return;
+        if (status !== "granted") {
+          showErrorToast("Gallery permission is required to pick images");
+          return;
+        }
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ["images"],
           quality: 0.5,
