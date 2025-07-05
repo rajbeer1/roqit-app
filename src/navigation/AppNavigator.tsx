@@ -3,6 +3,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Login from "../screens/onboarding/Login";
 import VerifyOtp from "../screens/onboarding/VerifyOtp";
+import HubCode from "../screens/onboarding/HubCode";
 import Home from "../screens/Home";
 import Trip from "../screens/Trip";
 import Profile from "../screens/Profile";
@@ -10,10 +11,21 @@ import { storageService } from "../services/api/storage.service";
 import { View, ActivityIndicator } from "react-native";
 import CustomTabBar from "../components/ui/CustomTabBar";
 import VehicleVerificationScreen from "../screens/VehicleVerificationScreen";
+import First from "../screens/onboarding/userInfo/First";
+import Second from "../screens/onboarding/userInfo/Second";
+import Third from "../screens/onboarding/userInfo/Third";
+import Fourth from "../screens/onboarding/userInfo/Fourth";
+import Fifth from "../screens/onboarding/userInfo/Fifth";
 
 export type RootStackParamList = {
   Login: undefined;
-  VerifyOtp: { phoneNumber: string };
+  VerifyOtp: { phoneNumber: string; isLogin: boolean };
+  HubCode: undefined;
+  First: undefined;
+  Second: undefined;
+  Third: undefined;
+  Fourth: undefined;
+  Fifth: undefined;
   MainTabs: undefined;
   VehicleVerification: undefined;
 };
@@ -76,6 +88,12 @@ const AppNavigator = () => {
     >
       <Stack.Screen name="Login" component={Login} />
       <Stack.Screen name="VerifyOtp" component={VerifyOtp} />
+      <Stack.Screen name="HubCode" component={HubCode} />
+      <Stack.Screen name="First" component={First} />
+      <Stack.Screen name="Second" component={Second} />
+      <Stack.Screen name="Third" component={Third} />
+      <Stack.Screen name="Fourth" component={Fourth} />
+      <Stack.Screen name="Fifth" component={Fifth} />
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen
         name="VehicleVerification"

@@ -30,7 +30,7 @@ const Profile = () => {
       setImgLoading(true);
       fetchDriverImage(organisationId, user.id)
         .then((uri) => {
-          if (isMounted) setDriverImg(uri);
+          if (isMounted && uri) setDriverImg(uri);
         })
         .catch(() => {
           if (isMounted) setDriverImg(null);
@@ -137,10 +137,6 @@ const Profile = () => {
 
         <Text style={styles.labelSection}>More</Text>
         <View style={styles.infoBox}>
-          <TouchableOpacity style={styles.actionRow}>
-            <Text style={styles.actionText}>Deactivate account</Text>
-            <Text style={styles.arrow}>{">"}</Text>
-          </TouchableOpacity>
           <TouchableOpacity style={styles.signOutRow} onPress={handleSignOut}>
             <Text style={styles.signOutText}>Sign out</Text>
             <View style={styles.signOutIcon}>
@@ -295,7 +291,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 14,
-    borderTopWidth: 1,
+    // borderTopWidth: 1,
     borderTopColor: "#f2f2f2",
   },
   signOutText: {

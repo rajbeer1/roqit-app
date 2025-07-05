@@ -10,11 +10,23 @@ export interface VerifyOTPRequest {
   otp: string;
 }
 
+export interface SendOnboardingOTPRequest {
+  phoneNumber: string;
+}
+export interface VerifyOnboardingOTPRequest {
+  phoneNumber: string;
+  otp: string;
+}
+
 export const authService = {
   sendOTP: (data: SendOTPRequest) => IdentityApi.post("/auth/otp/send", data),
 
   verifyOTP: (data: VerifyOTPRequest) =>
     IdentityApi.post("/auth/otp/verify", data),
+  sendOnboardingOTP: (data: SendOnboardingOTPRequest) =>
+    IdentityApi.post("/auth/otp/onboard/send", data),
+  verifyOnboardingOTP: (data: VerifyOnboardingOTPRequest) =>
+    IdentityApi.post("/auth/otp/onboard/verify", data),
 };
 
 export const fetchOrganisationLogo = async (organisationId: string) => {

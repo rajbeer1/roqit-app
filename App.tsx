@@ -6,8 +6,11 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { useUserStore } from "./src/store/user.store";
 import { useAuthStore } from "./src/store/auth.store";
 import { storageService } from "./src/services/api/storage.service";
+import { useOnboardingStore } from "./src/store/onboarding.store";
 
 export default function App() {
+  const { userInfo } = useOnboardingStore();
+  console.log(userInfo);
 // (async () => {
 //   const token = await storageService.getItem('userAddress');
 //   console.log(token);

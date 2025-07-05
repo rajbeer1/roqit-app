@@ -169,7 +169,7 @@ const OrderDataModal: React.FC<OrderDataModalProps> = ({
               </Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+          <TouchableOpacity onPress={onClose} style={styles.closeBtn} disabled={loading}>
             <Text style={styles.closeBtnText}>Cancel</Text>
           </TouchableOpacity>
         </KeyboardWrapper>

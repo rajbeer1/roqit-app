@@ -9,17 +9,27 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation, CommonActions } from "@react-navigation/native";
+import {
+  useNavigation,
+  CommonActions,
+  RouteProp,
+} from "@react-navigation/native";
+import type { RootStackParamList } from "../../navigation/AppNavigator";
 import RoqButton from "../../components/ui/RoqButton";
 import KeyboardWrapper from "../../components/ui/Keyboard";
 import { useAuthStore } from "../../store/auth.store";
+import { useOnboardingStore } from "../../store/onboarding.store";
+
+type VerifyOtpRouteProp = RouteProp<RootStackParamList, "VerifyOtp">;
 
 const OTP_LENGTH = 6;
 
-const VerifyOtp = () => {
+const VerifyOtp = ({ route }: { route: VerifyOtpRouteProp }) => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { verifyOTP, loading, phoneNumber, sendOTP } = useAuthStore();
+  const { verifyOnboardingOTP, sendOnboardingOTP, loading: onboardingLoading } = useOnboardingStore();
+  const { isLogin } = route.params;
   const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(""));
   const inputs = useRef<(TextInput | null)[]>([]);
 
@@ -34,26 +44,49 @@ const VerifyOtp = () => {
   };
 
   const handleBackspace = (e: any, idx: number) => {
-    if (e.nativeEvent.key === "Backspace" && !otp[idx] && idx > 0) {
-      inputs.current[idx - 1]?.focus();
+    if (e.nativeEvent.key === "Backspace") {
+      if (otp[idx]) {
+        const newOtp = [...otp];
+        newOtp[idx] = "";
+        setOtp(newOtp);
+      } else if (idx > 0) {
+        inputs.current[idx - 1]?.focus();
+        const newOtp = [...otp];
+        newOtp[idx - 1] = "";
+        setOtp(newOtp);
+      }
     }
   };
 
   const handleVerify = async () => {
     const code = otp.join("");
     Keyboard.dismiss();
-    const result = await verifyOTP(phoneNumber, code);
+
+    const result = isLogin
+      ? await verifyOTP(phoneNumber, code)
+      : await verifyOnboardingOTP(phoneNumber, code);
+
     if (result === true) {
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'MainTabs' }],
-        })
-      );
+      if (isLogin) {
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: "MainTabs" }],
+          })
+        );
+      } else {
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: "HubCode" }],
+          })
+        );
+      }
     }
   };
+
   const handleResendOTP = async () => {
-    await sendOTP(phoneNumber);
+    isLogin ? await sendOTP(phoneNumber) : await sendOnboardingOTP(phoneNumber);
     Keyboard.dismiss();
   };
   return (
@@ -69,9 +102,7 @@ const VerifyOtp = () => {
         <Text style={styles.heading}>
           using <Text style={styles.blue}>OTP</Text>
         </Text>
-        <Text style={styles.subtext}>
-          6-digit verification code 
-        </Text>
+        <Text style={styles.subtext}>6-digit verification code</Text>
         <View style={styles.otpRow}>
           {otp.map((digit, idx) => (
             <TextInput
@@ -97,12 +128,12 @@ const VerifyOtp = () => {
       </View>
       <View style={[styles.bottom, { paddingBottom: insets.bottom + 8 }]}>
         <RoqButton
-          title={loading ? "Loading" : "Verify"}
+          title={loading || onboardingLoading ? "Loading" : "Verify"}
           iconName="cellphone"
           onPress={handleVerify}
           style={styles.button}
-          disabled={otp.some((d) => !d) || loading}
-          loading={loading}
+          disabled={otp.some((d) => !d) || loading || onboardingLoading}
+          loading={loading || onboardingLoading}
         />
       </View>
     </KeyboardWrapper>

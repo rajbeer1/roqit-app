@@ -6,17 +6,20 @@ import {
   StyleSheet,
   Platform,
   Keyboard,
+  TouchableOpacity,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoqButton from "../../components/ui/RoqButton";
 import KeyboardWrapper from "../../components/ui/Keyboard";
 import { useAuthStore } from "../../store/auth.store";
 import { useNavigation } from "@react-navigation/native";
+import { useOnboardingStore } from "../../store/onboarding.store";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../../navigation/AppNavigator";
 
 const Login = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [isLogin, setIsLogin] = useState(true);
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [countryCode, setCountryCode] = useState("+91");
   const {
@@ -25,13 +28,13 @@ const Login = () => {
     setPhoneNumber: setPhoneNumberStore,
     error,
   } = useAuthStore();
+  const { sendOnboardingOTP, loading: onboardingLoading } = useOnboardingStore();
   const insets = useSafeAreaInsets();
 
   const handlePhoneChange = (text: string) => {
     const cleanedText = text.replace(/[^0-9]/g, "");
     setPhoneNumber(cleanedText);
   };
-
   const handleCountryCodeChange = (text: string) => {
     const cleanedText = text.replace(/[^0-9]/g, "");
     if (cleanedText.length <= 3) {
@@ -43,10 +46,21 @@ const Login = () => {
     const FullPhoneNumber = countryCode + phoneNumber;
     setPhoneNumberStore(FullPhoneNumber);
     Keyboard.dismiss();
-    const result = await sendOTP(FullPhoneNumber);
+
+    const result = isLogin
+      ? await sendOTP(FullPhoneNumber)
+      : await sendOnboardingOTP(FullPhoneNumber);
+
     if (result === true) {
-      navigation.navigate("VerifyOtp", { phoneNumber: FullPhoneNumber });
+      navigation.navigate("VerifyOtp", {
+        phoneNumber: FullPhoneNumber,
+        isLogin: isLogin,
+      });
     }
+  };
+
+  const toggleMode = () => {
+    setIsLogin(!isLogin);
   };
 
   const isButtonDisabled =
@@ -85,16 +99,27 @@ const Login = () => {
         </View>
       </View>
       <View style={[styles.bottom, { paddingBottom: insets.bottom + 8 }]}>
-        <Text style={styles.loginText}>
-          New to Roqit? <Text style={styles.loginLink}>Register</Text>
-        </Text>
+        <TouchableOpacity onPress={toggleMode}>
+          <Text style={styles.loginText}>
+            {isLogin ? (
+              <>
+                New to Roqit? <Text style={styles.loginLink}>Register</Text>
+              </>
+            ) : (
+              <>
+                Already have an account?{" "}
+                <Text style={styles.loginLink}>Login</Text>
+              </>
+            )}
+          </Text>
+        </TouchableOpacity>
         <RoqButton
-          title="Get OTP"
+          title={isLogin ? "Get OTP" : "Register"}
           iconName="cellphone"
           onPress={handleGetOtp}
           style={styles.button}
-          disabled={isButtonDisabled || loading}
-          loading={loading}
+          disabled={isButtonDisabled || loading || onboardingLoading}
+          loading={loading || onboardingLoading}
         />
       </View>
     </KeyboardWrapper>

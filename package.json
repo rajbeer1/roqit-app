@@ -38,7 +38,8 @@
     "react-native-svg": "15.11.2",
     "expo-location": "~18.1.5",
     "expo-image-manipulator": "~13.1.7",
-    "react-native-maps": "1.20.1"
+    "react-native-maps": "1.20.1",
+    "@react-native-community/datetimepicker": "8.4.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
