@@ -16,6 +16,8 @@ import Second from "../screens/onboarding/userInfo/Second";
 import Third from "../screens/onboarding/userInfo/Third";
 import Fourth from "../screens/onboarding/userInfo/Fourth";
 import Fifth from "../screens/onboarding/userInfo/Fifth";
+import Sixth from "../screens/onboarding/userInfo/Sixth";
+import ImageSelector from "../screens/onboarding/userInfo/ImageSelector";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -26,6 +28,8 @@ export type RootStackParamList = {
   Third: undefined;
   Fourth: undefined;
   Fifth: undefined;
+  Sixth: { source: string } | undefined;
+  ImageSelector: undefined;
   MainTabs: undefined;
   VehicleVerification: undefined;
 };
@@ -94,6 +98,8 @@ const AppNavigator = () => {
       <Stack.Screen name="Third" component={Third} />
       <Stack.Screen name="Fourth" component={Fourth} />
       <Stack.Screen name="Fifth" component={Fifth} />
+      <Stack.Screen name="Sixth" component={Sixth} />
+      <Stack.Screen name="ImageSelector" component={ImageSelector} />
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen
         name="VehicleVerification"

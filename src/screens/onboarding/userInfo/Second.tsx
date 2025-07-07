@@ -29,15 +29,15 @@ const licenseCategory = {
 const genderOptions = ["male", "female", "others"];
 
 const Second = () => {
-  const [country, setCountry] = useState("India");
+  const { userInfo, setUserInfo } = useOnboardingStore();
+  const [country, setCountry] = useState(userInfo?.driverCategory || "India");
   const [showCountryModal, setShowCountryModal] = useState(false);
-  const [dob, setDob] = useState<Date | null>(null);
+  const [dob, setDob] = useState<Date | null>(userInfo?.dateOfBirth ? new Date(userInfo.dateOfBirth) : null);
   const [showDobPicker, setShowDobPicker] = useState(false);
-  const [doj, setDoj] = useState<Date | null>(null);
+  const [doj, setDoj] = useState<Date | null>(userInfo?.dateOfJoining ? new Date(userInfo.dateOfJoining) : null);
   const [showDojPicker, setShowDojPicker] = useState(false);
-  const [gender, setGender] = useState("male");
+  const [gender, setGender] = useState(userInfo?.gender || "male");
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const { setUserInfo, userInfo } = useOnboardingStore();
   const insets = useSafeAreaInsets();
 
   const formatDate = (date: Date | null) => {
@@ -68,9 +68,9 @@ const Second = () => {
           <Text style={styles.headerTitle}>Your identity</Text>
         </View>
         <View style={styles.progressContainer}>
-          <Text style={styles.stepText}>Step 2/5</Text>
+          <Text style={styles.stepText}>Step 2/6</Text>
           <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: "40%" }]} />
+            <View style={[styles.progressBarFill, { width: "32%" }]} />
           </View>
         </View>
         <Text style={styles.sectionTitle}>Country, DOB, DOJ, Gender</Text>

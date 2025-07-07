@@ -14,19 +14,39 @@ import KeyboardWrapper from "../../../components/ui/Keyboard";
 import { useOnboardingStore } from "../../../store/onboarding.store";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../../../navigation/AppNavigator";
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons } from "@expo/vector-icons";
 
 const Third = () => {
-  const [addressLine1, setAddressLine1] = useState("");
-  const [addressLine2, setAddressLine2] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [zipcode, setZipcode] = useState("");
+  const parseAddress = (addressString: string) => {
+    if (!addressString)
+      return {
+        addressLine1: "",
+        addressLine2: "",
+        city: "",
+        state: "",
+        zipcode: "",
+      };
+    const parts = addressString.split(", ");
+    return {
+      addressLine1: parts[0] || "",
+      addressLine2: parts[1] || "",
+      city: parts[2] || "",
+      state: parts[3] || "",
+      zipcode: parts[4] || "",
+    };
+  };
+
+  const { userInfo, setUserInfo } = useOnboardingStore();
+  const addressParts = parseAddress(userInfo?.permanentAddress || "");
+  const [addressLine1, setAddressLine1] = useState(addressParts.addressLine1);
+  const [addressLine2, setAddressLine2] = useState(addressParts.addressLine2);
+  const [city, setCity] = useState(addressParts.city);
+  const [state, setState] = useState(addressParts.state);
+  const [zipcode, setZipcode] = useState(addressParts.zipcode);
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const { setUserInfo, userInfo } = useOnboardingStore();
   const insets = useSafeAreaInsets();
 
-  const country = userInfo.driverCategory || userInfo.country || "";
+  const country = userInfo?.driverCategory || userInfo?.country || "";
 
   const handleContinue = () => {
     const address = {
@@ -46,7 +66,8 @@ const Third = () => {
     navigation.navigate("Fourth");
   };
 
-  const isButtonDisabled = !addressLine1.trim() || !city.trim() || !state.trim() || !zipcode.trim();
+  const isButtonDisabled =
+    !addressLine1.trim() || !city.trim() || !state.trim() || !zipcode.trim();
 
   return (
     <KeyboardWrapper style={{ flex: 1, backgroundColor: "#fff" }}>
@@ -55,9 +76,9 @@ const Third = () => {
           <Text style={styles.headerTitle}>Your Identity</Text>
         </View>
         <View style={styles.progressContainer}>
-          <Text style={styles.stepText}>Step 3/5</Text>
+          <Text style={styles.stepText}>Step 3/6</Text>
           <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: "60%" }]} />
+            <View style={[styles.progressBarFill, { width: "50%" }]} />
           </View>
         </View>
         <Text style={styles.sectionTitle}>Permanent & Mailing Address</Text>
@@ -67,7 +88,12 @@ const Third = () => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.inputRow}>
-            <MaterialIcons name="location-on" size={22} color="#888" style={styles.inputIcon} />
+            <MaterialIcons
+              name="location-on"
+              size={22}
+              color="#888"
+              style={styles.inputIcon}
+            />
             <TextInput
               style={styles.input}
               placeholder="Address Line 1"
@@ -78,7 +104,12 @@ const Third = () => {
             />
           </View>
           <View style={styles.inputRow}>
-            <MaterialIcons name="location-city" size={22} color="#888" style={styles.inputIcon} />
+            <MaterialIcons
+              name="location-city"
+              size={22}
+              color="#888"
+              style={styles.inputIcon}
+            />
             <TextInput
               style={styles.input}
               placeholder="Address Line 2"
@@ -89,7 +120,12 @@ const Third = () => {
             />
           </View>
           <View style={styles.inputRow}>
-            <MaterialIcons name="location-city" size={22} color="#888" style={styles.inputIcon} />
+            <MaterialIcons
+              name="location-city"
+              size={22}
+              color="#888"
+              style={styles.inputIcon}
+            />
             <TextInput
               style={styles.input}
               placeholder="City"
@@ -100,7 +136,12 @@ const Third = () => {
             />
           </View>
           <View style={styles.inputRow}>
-            <MaterialIcons name="map" size={22} color="#888" style={styles.inputIcon} />
+            <MaterialIcons
+              name="map"
+              size={22}
+              color="#888"
+              style={styles.inputIcon}
+            />
             <TextInput
               style={styles.input}
               placeholder="State"
@@ -111,7 +152,12 @@ const Third = () => {
             />
           </View>
           <View style={styles.inputRow}>
-            <MaterialIcons name="markunread-mailbox" size={22} color="#888" style={styles.inputIcon} />
+            <MaterialIcons
+              name="markunread-mailbox"
+              size={22}
+              color="#888"
+              style={styles.inputIcon}
+            />
             <TextInput
               style={styles.input}
               placeholder="Zipcode"
@@ -123,7 +169,7 @@ const Third = () => {
           </View>
         </ScrollView>
       </View>
-      <View style={[styles.bottomFixed, { paddingBottom: insets.bottom + 8 }]}>        
+      <View style={[styles.bottomFixed, { paddingBottom: insets.bottom + 8 }]}>
         <TouchableOpacity
           style={[styles.saveButton, isButtonDisabled && { opacity: 0.5 }]}
           onPress={handleContinue}
@@ -138,19 +184,19 @@ const Third = () => {
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 30 : 24,
+    paddingTop: Platform.OS === "ios" ? 30 : 24,
     paddingBottom: 8,
-    backgroundColor: '#fff',
-    position: 'relative',
+    backgroundColor: "#fff",
+    position: "relative",
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#222',
+    fontWeight: "600",
+    color: "#222",
   },
   progressContainer: {
     flexDirection: "row",
@@ -207,7 +253,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#e0e0e0",
     fontSize: 16,
     color: "#333",
-    paddingVertical:12,
+    paddingVertical: 12,
     marginBottom: 4,
     width: "90%",
   },
@@ -234,10 +280,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     // borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: "#e0e0e0",
     marginBottom: 8,
     paddingBottom: 2,
   },

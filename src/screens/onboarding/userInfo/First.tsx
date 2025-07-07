@@ -18,16 +18,17 @@ import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../../../navigation/AppNavigator";
 
 const First = () => {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
+  const { userInfo, setUserInfo } = useOnboardingStore();
+  const [firstName, setFirstName] = useState(userInfo?.firstName || "");
+  const [lastName, setLastName] = useState(userInfo?.lastName || "");
+  const [email, setEmail] = useState(userInfo?.email || "");
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const { setUserInfo } = useOnboardingStore();
   const insets = useSafeAreaInsets();
 
   const handleNext = async () => {
     Keyboard.dismiss();
     setUserInfo({
+      ...userInfo,
       firstName,
       lastName,
       email,
@@ -59,9 +60,9 @@ const First = () => {
           </TouchableOpacity>
         </View>
         <View style={styles.progressContainer}>
-          <Text style={styles.stepText}>Step 1/5</Text>
+          <Text style={styles.stepText}>Step 1/6</Text>
           <View style={styles.progressBarBg}>
-            <View style={styles.progressBarFill} />
+            <View style={[styles.progressBarFill, { width: '16.66%' }]} />
           </View>
         </View>
         <Text style={styles.sectionTitle}>Name & Email</Text>

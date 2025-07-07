@@ -28,17 +28,17 @@ const licenseCategory = {
 };
 
 const Fourth = () => {
-  const [licenseNumber, setLicenseNumber] = useState("");
-  const [category, setCategory] = useState("");
+  const { userInfo, setUserInfo } = useOnboardingStore();
+  const [licenseNumber, setLicenseNumber] = useState(userInfo?.license?.number || "");
+  const [category, setCategory] = useState(userInfo?.license?.category || "");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [expiry, setExpiry] = useState<Date | null>(null);
+  const [expiry, setExpiry] = useState<Date | null>(userInfo?.license?.expiresOn ? new Date(userInfo.license.expiresOn) : null);
   const [showExpiryPicker, setShowExpiryPicker] = useState(false);
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const { setUserInfo, userInfo } = useOnboardingStore();
   const insets = useSafeAreaInsets();
 
   // Get country from userInfo
-  const country = (userInfo.driverCategory || userInfo.country || "India") as keyof typeof licenseCategory;
+  const country = (userInfo?.driverCategory || userInfo?.country || "India") as keyof typeof licenseCategory;
   const categories = licenseCategory[country] || [];
 
   const formatDate = (date: Date | null) => {
@@ -54,7 +54,7 @@ const Fourth = () => {
       ...userInfo,
       license: {
         number: licenseNumber,
-        issuedOn: Date.now(),
+        issuedOn: userInfo?.license?.issuedOn || Date.now(),
         expiresOn: expiry ? expiry.toISOString().split("T")[0] : "",
         category,
       },
@@ -71,9 +71,9 @@ const Fourth = () => {
           <Text style={styles.headerTitle}>Your Identity</Text>
         </View>
         <View style={styles.progressContainer}>
-          <Text style={styles.stepText}>Step 4/5</Text>
+          <Text style={styles.stepText}>Step 4/6</Text>
           <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: "80%" }]} />
+            <View style={[styles.progressBarFill, { width: "66%" }]} />
           </View>
         </View>
         <Text style={styles.sectionTitle}>License Details</Text>

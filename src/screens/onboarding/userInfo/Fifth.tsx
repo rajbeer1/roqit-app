@@ -18,11 +18,11 @@ import type { RootStackParamList } from "../../../navigation/AppNavigator";
 import { useAuthStore } from "../../../store/auth.store";
 
 const Fifth = () => {
-  const [name, setName] = useState("");
-  const [relation, setRelation] = useState("");
-  const [number, setNumber] = useState("");
+  const { userInfo, setUserInfo } = useOnboardingStore();
+  const [name, setName] = useState(userInfo?.emergencyContact?.name || "");
+  const [relation, setRelation] = useState(userInfo?.emergencyContact?.relationShip || "");
+  const [number, setNumber] = useState(userInfo?.emergencyContact?.phoneNumber || "");
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const { setUserInfo, userInfo } = useOnboardingStore();
   const insets = useSafeAreaInsets();
 
   const handleSubmit = () => {
@@ -36,7 +36,7 @@ const Fifth = () => {
         phoneNumber: number,
       },
     });
-    // navigation.navigate("MainTabs");
+    navigation.navigate("ImageSelector");
   };
 
   const isButtonDisabled = !name.trim() || !relation.trim() || !number.trim();
@@ -48,9 +48,9 @@ const Fifth = () => {
           <Text style={styles.headerTitle}>Your Identity</Text>
         </View>
         <View style={styles.progressContainer}>
-          <Text style={styles.stepText}>Step 5/5</Text>
+          <Text style={styles.stepText}>Step 5/6</Text>
           <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: "100%" }]} />
+            <View style={[styles.progressBarFill, { width: "83%" }]} />
           </View>
         </View>
         <Text style={styles.sectionTitle}>Emergency contact</Text>
