@@ -3,13 +3,20 @@ import { View, StyleSheet, Text } from "react-native";
 import Header from "../components/ui/Header";
 import { useRoute } from "@react-navigation/native";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { RouteProp } from "@react-navigation/native";
+import { RouteProp, useNavigation } from "@react-navigation/native";
 import { TripCard } from "./Trip";
 import MapView, { PROVIDER_GOOGLE, Polyline, Marker } from "react-native-maps";
 import { backendService } from "../services/api/backend.service";
+import { StackNavigationProp } from "@react-navigation/stack";
+
+type TripScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  "IndividualTrip"
+>;
 
 const IndividualTrip = () => {
   const route = useRoute<RouteProp<RootStackParamList, "IndividualTrip">>();
+  const navigation = useNavigation<TripScreenNavigationProp>();
   const { trip } = route.params || {};
   const [tripData, setTripData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -79,7 +86,7 @@ const IndividualTrip = () => {
     <View style={styles.container}>
       <Header />
       <View style={{ marginTop: 16 }}>
-        <TripCard trip={trip} />
+        <TripCard trip={trip} backButton={true} navigation={navigation} />
       </View>
       <View style={styles.mapContainer}>
         {loading ? (

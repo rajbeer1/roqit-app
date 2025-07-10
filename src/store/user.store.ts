@@ -66,7 +66,7 @@ export const useUserStore = create<UserStoreState>()(
           ? user.trips.find((trip: any) => trip.status !== "Complete")
           : null;
         const approvalStatus = user?.approvalStatus ?? null;
-        const trips = user?.trips ?? null;
+        const trips = user?.trips?.filter((trip: any) => trip.status === "Complete") ?? null;
         let totalSeconds = 0;
         let totalDistance = 0;
         const vehicleSet = new Set<string>();
