@@ -1,6 +1,34 @@
 import { BackendApi } from "./config";
 import { storageService } from "./storage.service";
-
+export interface UserRegistrationRequest {
+  firstName: string;
+  lastName: string;
+  driverCountry: string;
+  photoType: string;
+  photo: string;
+  phoneNumber: string;
+  gender: string;
+  email: string;
+  dateOfBirth: string;
+  dateOfJoining: string;
+  license: {
+    number: string;
+    issuedOn: number;
+    expiresOn: string;
+    category: string;
+  };
+  permanentAddress: string;
+  mailingAddress: string;
+  emergencyContact: {
+    name: string;
+    phoneNumber: string;
+    relationship: string;
+  };
+  kyc: Array<{
+    documentType: string;
+    documentNumber: string;
+  }>;
+}
 export const backendService = {
   fetchUser: async () => {
     const response = await BackendApi.get("/user");
@@ -26,6 +54,8 @@ export const backendService = {
     const response = await BackendApi.post("/user/trip/unassign", payload);
     return response.data;
   },
+  registerUser: (data: UserRegistrationRequest, hubCode: string) =>
+    BackendApi.post(`/user/register?hubCode=${hubCode}`, data),
 };
 
 export const fetchDriverImage = async (

@@ -17,7 +17,10 @@ import Third from "../screens/onboarding/userInfo/Third";
 import Fourth from "../screens/onboarding/userInfo/Fourth";
 import Fifth from "../screens/onboarding/userInfo/Fifth";
 import Sixth from "../screens/onboarding/userInfo/Sixth";
+import UnderReview from "../screens/onboarding/UnderReview";
+import ReviewRejected from "../screens/onboarding/ReviewRejected";
 import ImageSelector from "../screens/onboarding/userInfo/ImageSelector";
+import { useUserStore } from "../store/user.store";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -62,10 +65,14 @@ const MainTabs = () => (
 
 const AppNavigator = () => {
   const [initialRoute, setInitialRoute] = useState<string | null>(null);
+  const { approvalStatus, fetchUser } = useUserStore();
 
   useEffect(() => {
     (async () => {
       const token = await storageService.getItem("token");
+      if (token) {
+        fetchUser();
+      }
       setInitialRoute(token ? "MainTabs" : "Login");
     })();
   }, []);
@@ -85,6 +92,12 @@ const AppNavigator = () => {
     );
   }
 
+  if (approvalStatus === "pending") {
+    return <UnderReview />
+  }
+  if (approvalStatus === "reject") {
+    return <ReviewRejected />
+  }
   return (
     <Stack.Navigator
       initialRouteName={initialRoute as keyof RootStackParamList}

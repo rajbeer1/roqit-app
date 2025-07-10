@@ -12,12 +12,14 @@ import { RouteProp } from "@react-navigation/native";
 import type { RootStackParamList } from "../../../navigation/AppNavigator";
 import * as ImagePicker from "expo-image-picker";
 import { useOnboardingStore } from "../../../store/onboarding.store";
-import { showErrorToast } from "../../../services/ui/toasts";
+import { showErrorToast, showSuccessToast } from "../../../services/ui/toasts";
 import { useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import KeyboardWrapper from "../../../components/ui/Keyboard";
 import { MaterialIcons } from "@expo/vector-icons";
+import { backendService } from "../../../services/api/backend.service";
+import { storageService } from "../../../services/api/storage.service";
 
 type SixthRouteProp = RouteProp<RootStackParamList, "Sixth">;
 
@@ -32,13 +34,19 @@ const documents: DocumentItem[] = [
   {
     key: "panCard",
     label: "PAN Card",
-    desc: (source: string) => source === "browse" ? "Select PAN Card from gallery" : "Upload your PAN Card",
+    desc: (source: string) =>
+      source === "browse"
+        ? "Select PAN Card from gallery"
+        : "Upload your PAN Card",
     icon: require("../../../../assets/pan-card.png"),
   },
   {
     key: "drivingLicense",
     label: "Driving License",
-    desc: (source: string) => source === "browse" ? "Select Driving License from gallery" : "Upload your Driving License",
+    desc: (source: string) =>
+      source === "browse"
+        ? "Select Driving License from gallery"
+        : "Upload your Driving License",
     icon: require("../../../../assets/driver-license.png"),
   },
   {
@@ -61,36 +69,42 @@ const Sixth = ({ route }: { route: SixthRouteProp }) => {
     selfie: userInfo?.documents?.selfie || null,
     selfieType: userInfo?.documents?.selfieType || null,
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const pickImage = async (documentKey: string) => {
     try {
       let result;
       if (route.params?.source === "browse" && documentKey !== "selfie") {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const { status } =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== "granted") {
           showErrorToast("Gallery permission is required to pick images");
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ["images"],
-          quality: 0.5,
+          quality: 0.25,
           base64: true,
         });
       } else {
-        const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+        const { status: cameraStatus } =
+          await ImagePicker.requestCameraPermissionsAsync();
         if (cameraStatus !== "granted") {
           showErrorToast("Camera permission is required to take photos");
           return;
         }
         result = await ImagePicker.launchCameraAsync({
           mediaTypes: ["images"],
-          quality: 0.5,
+          quality: 0.25,
           base64: true,
 
-          cameraType: documentKey === "selfie" ? ImagePicker.CameraType.front : ImagePicker.CameraType.back,
+          cameraType:
+            documentKey === "selfie"
+              ? ImagePicker.CameraType.front
+              : ImagePicker.CameraType.back,
         });
       }
-      
+
       if (!result.canceled && result.assets && result.assets[0].base64) {
         const base64 = `data:${result.assets[0].mimeType};base64,${result.assets[0].base64}`;
         setImages((prev) => ({
@@ -105,29 +119,111 @@ const Sixth = ({ route }: { route: SixthRouteProp }) => {
   };
 
   const canProceed = () => {
-    
-   const requiredDocs = ["panCard", "drivingLicense", "selfie"];
+    const requiredDocs = ["panCard", "drivingLicense", "selfie"];
     const isAllDocumentsUploaded = requiredDocs.every((doc) => images[doc]);
     return isAllDocumentsUploaded;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canProceed()) {
       showErrorToast(`Please upload all the documents`);
       return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const kyc = [];
+      if (images.panCard) {
+        kyc.push({
+          documentType: images.panCardType || "image/jpeg",
+          documentNumber: images.panCard,
+        });
+      }
+      if (images.drivingLicense) {
+        kyc.push({
+          documentType: images.drivingLicenseType || "image/jpeg",
+          documentNumber: images.drivingLicense,
+        });
+      }
+
+      const registrationPayload = {
+        firstName: userInfo?.firstName || "",
+        lastName: userInfo?.lastName || "",
+        driverCountry: userInfo?.driverCategory || userInfo?.country || "India",
+        photoType: "image/jpeg",
+        photo: images.selfie || "",
+        phoneNumber: userInfo?.phoneNumber || "",
+        gender: userInfo?.gender || "",
+        email: userInfo?.email || "",
+        dateOfBirth: userInfo?.dateOfBirth || "",
+        dateOfJoining: userInfo?.dateOfJoining || "",
+        license: {
+          number: userInfo?.license?.number || "",
+          issuedOn: userInfo?.license?.issuedOn || Date.now(),
+          expiresOn: userInfo?.license?.expiresOn || "",
+          category: userInfo?.license?.category || "",
+        },
+        permanentAddress: userInfo?.permanentAddress || "N/A",
+        mailingAddress: userInfo?.mailingAddress || "N/A",
+        emergencyContact: {
+          name: userInfo?.emergencyContact?.name || "N/A",
+          phoneNumber: userInfo?.emergencyContact?.phoneNumber || "",
+          relationship: userInfo?.emergencyContact?.relationShip || "N/A",
+        },
+        kyc,
+      };
+      const hubCode = useOnboardingStore.getState().hubCode;
+
+      if (!hubCode) {
+        showErrorToast("Hub code is required for registration");
+        return;
+      }
+      const response = await backendService.registerUser(
+        registrationPayload,
+        hubCode
+      );
+      console.log('response', response.data);
+
+
+      if (response.data?.token) {
+        storageService.setItem("token", response.data.token);
+        setUserInfo({});
+        showSuccessToast("Registration completed successfully!");
+        navigation.navigate("MainTabs");
+      } else {
+        const errorResponse = response.data?.error;
+        console.log('errorResponse', errorResponse);
+        showErrorToast(
+          errorResponse || "Registration failed. Please try again."
+        );
+      }
+    } catch (error: any) {
+      console.log('error', error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        "Registration failed. Please try again.";
+      showErrorToast(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const getRequiredDocuments = () => {
     if (route.params?.source === "pan") {
-      return documents.filter(doc => doc.key === "panCard" || doc.key === "selfie");
+      return documents.filter(
+        (doc) => doc.key === "panCard" || doc.key === "selfie"
+      );
     } else if (route.params?.source === "driving") {
-      return documents.filter(doc => doc.key === "drivingLicense" || doc.key === "selfie");
+      return documents.filter(
+        (doc) => doc.key === "drivingLicense" || doc.key === "selfie"
+      );
     }
     return documents;
   };
 
-  const isButtonDisabled = !canProceed();
+  const isButtonDisabled = !canProceed() || isSubmitting;
 
   return (
     <KeyboardWrapper style={{ flex: 1, backgroundColor: "#fff" }}>
@@ -143,10 +239,10 @@ const Sixth = ({ route }: { route: SixthRouteProp }) => {
         </View>
         <Text style={styles.sectionTitle}>Upload Required Documents</Text>
         <Text style={styles.description}>
-          Please upload clear images of your documents and take a selfie. 
-          Make sure the details are visible and not blurred or cropped.
+          Please upload clear images of your documents and take a selfie. Make
+          sure the details are visible and not blurred or cropped.
         </Text>
-        
+
         <ScrollView
           style={[styles.cardContainer, { marginBottom: 100 }]}
           contentContainerStyle={{ flexGrow: 1 }}
@@ -171,7 +267,10 @@ const Sixth = ({ route }: { route: SixthRouteProp }) => {
                   </View>
                 ) : (
                   <TouchableOpacity
-                    style={[styles.card, images[doc.key] && styles.cardSelected]}
+                    style={[
+                      styles.card,
+                      images[doc.key] && styles.cardSelected,
+                    ]}
                     onPress={() => pickImage(doc.key)}
                     activeOpacity={0.8}
                   >
@@ -180,7 +279,9 @@ const Sixth = ({ route }: { route: SixthRouteProp }) => {
                     </View>
                     <Text style={styles.cardLabel}>{doc.label}</Text>
                     <Text style={styles.cardDesc}>
-                      {typeof doc.desc === 'function' ? doc.desc(route.params?.source || 'camera') : doc.desc}
+                      {typeof doc.desc === "function"
+                        ? doc.desc(route.params?.source || "camera")
+                        : doc.desc}
                     </Text>
                     {images[doc.key] && (
                       <Text style={styles.uploaded}>✓ Uploaded</Text>
@@ -198,7 +299,9 @@ const Sixth = ({ route }: { route: SixthRouteProp }) => {
           onPress={handleSubmit}
           disabled={isButtonDisabled}
         >
-          <Text style={styles.saveButtonText}>Complete Registration</Text>
+          <Text style={styles.saveButtonText}>
+            {isSubmitting ? "Registering..." : "Complete Registration"}
+          </Text>
         </TouchableOpacity>
       </View>
     </KeyboardWrapper>

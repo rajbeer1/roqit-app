@@ -23,20 +23,6 @@ import VehicleSelectorModal from "../components/ui/VehicleSelectorModal";
 import * as Location from "expo-location";
 import type { RootStackParamList } from "../navigation/AppNavigator";
 
-const dummyActiveTrip = {
-  status: "Active",
-  checkIn: "10:30",
-  checkOut: "--:--",
-  date: "Monday, 26 May 2025",
-  assignedTo: "Sanjay Deol",
-  fleetManager: "Vikram Sinha",
-  vehicle: "Passenger",
-  licensePlate: "TS 09 AP 5874",
-  returnVehicle: "09:00pm",
-  hub: "Meetuguda",
-  battery: 65,
-};
-
 const Home = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { fetchUser, inProgressTrip, user, loading } = useUserStore();
@@ -208,7 +194,9 @@ const Home = () => {
       return true;
     } else {
       setGeoErrorMsg(
-        `You are not in the operation HUB to ${type === "checkin" ? "check in" : "check out"}.`
+        `You are not in the operation HUB to ${
+          type === "checkin" ? "check in" : "check out"
+        }.`
       );
       return false;
     }
@@ -343,7 +331,9 @@ const Home = () => {
                       Status: Active
                     </Text>
                   </View>
-                  <Text style={styles.hubText}>HUB: {user?.operation?.name}</Text>
+                  <Text style={styles.hubText}>
+                    HUB: {user?.operation?.name}
+                  </Text>
                   <View style={styles.batteryRow}>
                     <Text style={styles.batteryText}>Battery: </Text>
                     <Text style={styles.batteryText}>
@@ -379,15 +369,20 @@ const Home = () => {
                     </Text>
                     <Text style={styles.tripInfo}>
                       <Text style={styles.tripInfoLabel}>Return Vehicle:</Text>{" "}
-                      {
-                        inProgressTrip?.tripStartDate
-                          ? (() => {
-                              const start = new Date(inProgressTrip.tripStartDate);
-                              const returnTime = new Date(start.getTime() + 8 * 60 * 60 * 1000);
-                              return returnTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                            })()
-                          : "--:--"
-                      }
+                      {inProgressTrip?.tripStartDate
+                        ? (() => {
+                            const start = new Date(
+                              inProgressTrip.tripStartDate
+                            );
+                            const returnTime = new Date(
+                              start.getTime() + 8 * 60 * 60 * 1000
+                            );
+                            return returnTime.toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            });
+                          })()
+                        : "--:--"}
                     </Text>
                   </View>
                 </View>
