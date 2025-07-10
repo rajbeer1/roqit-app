@@ -7,6 +7,8 @@ import {
   Image,
   ScrollView,
   Platform,
+  ActivityIndicator,
+  Modal,
 } from "react-native";
 import { RouteProp } from "@react-navigation/native";
 import type { RootStackParamList } from "../../../navigation/AppNavigator";
@@ -313,6 +315,14 @@ const Sixth = ({ route }: { route: SixthRouteProp }) => {
           </Text>
         </TouchableOpacity>
       </View>
+      <Modal visible={isSubmitting} transparent animationType="fade">
+        <View style={styles.loadingModalBg}>
+          <View style={styles.loadingModalBox}>
+            <ActivityIndicator size="large" color="#1565c0" />
+            <Text style={{ marginTop: 16, color: '#1565c0', fontWeight: '600', fontSize: 16 }}>Registering...</Text>
+          </View>
+        </View>
+      </Modal>
     </KeyboardWrapper>
   );
 };
@@ -496,6 +506,20 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "600",
+  },
+  loadingModalBg: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingModalBox: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 180,
   },
 });
 
