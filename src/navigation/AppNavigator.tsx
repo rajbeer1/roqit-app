@@ -20,6 +20,7 @@ import Sixth from "../screens/onboarding/userInfo/Sixth";
 import UnderReview from "../screens/onboarding/UnderReview";
 import ReviewRejected from "../screens/onboarding/ReviewRejected";
 import ImageSelector from "../screens/onboarding/userInfo/ImageSelector";
+import { IndividualTrip } from "../screens/IndividualTrip";
 import { useUserStore } from "../store/user.store";
 
 export type RootStackParamList = {
@@ -35,6 +36,7 @@ export type RootStackParamList = {
   ImageSelector: undefined;
   MainTabs: undefined;
   VehicleVerification: undefined;
+  IndividualTrip: { trip: any } | undefined;
 };
 
 export type TabParamList = {
@@ -114,6 +116,7 @@ const AppNavigator = () => {
       <Stack.Screen name="Sixth" component={Sixth} />
       <Stack.Screen name="ImageSelector" component={ImageSelector} />
       <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="IndividualTrip" component={IndividualTrip} />
       <Stack.Screen
         name="VehicleVerification"
         component={VehicleVerificationScreen}

@@ -325,10 +325,10 @@ const Home = () => {
               <View style={styles.tripCard}>
                 <View style={styles.tripHeaderRowNew}>
                   <Text style={styles.hubTextBig}>
-                  <Text style={{ fontWeight: 'bold' }}> HUB: </Text> {user?.operation?.name}
+                    <Text style={{ fontWeight: 'bold' }}> HUB: </Text> {user?.operation?.name ? (user.operation.name.length > 12 ? user.operation.name.slice(0, 12) + '…' : user.operation.name) : ''}
                   </Text>
                   <Text style={styles.batteryTextBig}>
-                    <Text style={{ fontWeight: 'bold' }}> Battery: </Text> {inProgressTrip?.vehicleMetaTripStart?.location?.soc || inProgressTrip?.vehicleMetaTripStart?.location?.batteryPercentage}%
+                    <Text style={{ fontWeight: 'bold' }}> Battery: </Text> {inProgressTrip?.vehicleMetaTripStart?.location?.soc || inProgressTrip?.vehicleMetaTripStart?.location?.batteryPercentage || 'N/A'}%
                   </Text>
                 </View>
                 <View

@@ -58,6 +58,10 @@ export const backendService = {
     const response = await BackendApi.post(`/user/register?hubCode=${hubCode}`, data);
     return response.data;
   },
+  getTrip: async (tripId: string) => {
+    const response = await BackendApi.get(`/trips/${tripId}?includeRoute=true&precision=true&requiredDPs[]=latitude&requiredDPs[]=longitude`);
+    return response.data;
+  },
 };
 
 export const fetchDriverImage = async (
