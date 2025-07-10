@@ -126,7 +126,7 @@ const Trip = () => {
   const navigation = useNavigation<TripScreenNavigationProp>();
   const { trips, loading, stats, tripsUnder8Hours } = useUserStore();
   const sortedTrips = trips && Array.isArray(trips)
-    ? [...trips].sort((a, b) => new Date(b.tripStartDate).getTime() - new Date(a.tripStartDate).getTime())
+    ? [...trips].sort((a, b) => new Date(b.tripStartDate).getTime() - new Date(a.tripStartDate).getTime()).filter((trip) => trip.status === 'Complete')
     : [];
 
 

@@ -34,12 +34,12 @@ export const useUserStore = create<UserStoreState>()(
       operationLng: null,
       inProgressTrip: null,
       organisationId: null,
-      geofenceRadius:null,
+      geofenceRadius: null,
       approvalStatus: null,
       trips: null,
       loading: false,
       error: null,
-      stats: { loginTime: '', totalDistance: '', vehicles: '' },
+      stats: { loginTime: "", totalDistance: "", vehicles: "" },
       tripsUnder8Hours: null,
       fetchUser: async () => {
         try {
@@ -48,7 +48,9 @@ export const useUserStore = create<UserStoreState>()(
           get().setUser(user);
           set({ loading: false });
         } catch (error: any) {
-          showErrorToast(error.response?.data?.message || "Failed to fetch user");
+          showErrorToast(
+            error.response?.data?.message || "Failed to fetch user"
+          );
           set({
             loading: false,
             error: error.response?.data?.message || "Failed to fetch user",
@@ -76,7 +78,7 @@ export const useUserStore = create<UserStoreState>()(
               totalSeconds += Math.floor((end - start) / 1000);
             }
           }
-          if (typeof trip.distance === 'number') {
+          if (typeof trip.distance === "number") {
             totalDistance += trip.distance;
           }
           if (trip.vehicle && trip.vehicle.licensePlate) {
@@ -85,10 +87,15 @@ export const useUserStore = create<UserStoreState>()(
         }
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const loginTime = `${hours} Hrs${minutes > 0 ? ' ' + minutes + ' Min' : ''}`;
+        let loginTime;
+        if (hours > 0) {
+          loginTime = `${hours} Hrs`;
+        } else {
+          loginTime = `${minutes} Min`;
+        }
 
         let tripsUnder8Hours = 0;
-        
+
         for (const trip of trips) {
           if (trip.tripStartDate && trip.tripEndDate) {
             const start = new Date(trip.tripStartDate).getTime();
@@ -112,27 +119,32 @@ export const useUserStore = create<UserStoreState>()(
           approvalStatus,
           trips,
           tripsUnder8Hours,
-          stats: { loginTime, totalDistance: `${totalDistance}`, vehicles: `${vehicleSet.size}` },
+          stats: {
+            loginTime,
+            totalDistance: `${totalDistance}`,
+            vehicles: `${vehicleSet.size}`,
+          },
         });
       },
-      clearUser: () => set({
-        user: null,
-        operationLat: null,
-        operationLng: null,
-        inProgressTrip: null,
-        organisationId: null,
-        geofenceRadius:null,
-        approvalStatus: null,
-        trips: null,
-        tripsUnder8Hours: null,
-        loading: false,
-        error: null,
-        stats: { loginTime: '', totalDistance: '', vehicles: '' },
-      }),
+      clearUser: () =>
+        set({
+          user: null,
+          operationLat: null,
+          operationLng: null,
+          inProgressTrip: null,
+          organisationId: null,
+          geofenceRadius: null,
+          approvalStatus: null,
+          trips: null,
+          tripsUnder8Hours: null,
+          loading: false,
+          error: null,
+          stats: { loginTime: "", totalDistance: "", vehicles: "" },
+        }),
     }),
     {
       name: "user-storage",
       storage: createJSONStorage(() => AsyncStorage),
     }
   )
-); 
+);
