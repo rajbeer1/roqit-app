@@ -40,9 +40,9 @@ const Header = () => {
           <Image source={require('../../../assets/roqit.png')} style={styles.logo} />
         )}
       </View>
-      <TouchableOpacity style={styles.iconButton}>
+      {/* <TouchableOpacity style={styles.iconButton}>
         <Icon name="bell-outline" size={26} color="#00994C" />
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 };

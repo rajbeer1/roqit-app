@@ -38,7 +38,8 @@ export const showErrorToast = (message: string, onRetry?: () => void) => {
     type: "error",
     text2: message || "Something went wrong",
     position: "bottom",
-    autoHide: false,
+    autoHide: true,
+    visibilityTime: 10000,
     props: { onRetry },
   });
 };
@@ -48,7 +49,7 @@ export const showSuccessToast = (message: string) => {
     type: "success",
     text2: message || "Success!",
     position: "top",
-    visibilityTime: 2000,
+    visibilityTime: 5000,
     autoHide: true,
   });
 };

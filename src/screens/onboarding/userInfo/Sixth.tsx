@@ -132,82 +132,91 @@ const Sixth = ({ route }: { route: SixthRouteProp }) => {
 
     setIsSubmitting(true);
 
+    const kyc = [];
+    if (images.panCard) {
+      kyc.push({
+        documentType: images.panCardType || "image/jpeg",
+        documentNumber: images.panCard,
+      });
+    }
+    if (images.drivingLicense) {
+      kyc.push({
+        documentType: images.drivingLicenseType || "image/jpeg",
+        documentNumber: images.drivingLicense,
+      });
+    }
+
+    const registrationPayload = {
+      firstName: userInfo?.firstName || "",
+      lastName: userInfo?.lastName || "",
+      driverCountry: userInfo?.driverCategory || userInfo?.country || "India",
+      photoType: "image/jpeg",
+      photo: images.selfie || "",
+      phoneNumber: userInfo?.phoneNumber || "",
+      gender: userInfo?.gender || "",
+      email: userInfo?.email || "",
+      dateOfBirth: userInfo?.dateOfBirth || "",
+      dateOfJoining: userInfo?.dateOfJoining || "",
+      license: {
+        number: userInfo?.license?.number || "",
+        issuedOn: userInfo?.license?.issuedOn || Date.now(),
+        expiresOn: userInfo?.license?.expiresOn || "",
+        category: userInfo?.license?.category || "",
+      },
+      permanentAddress: userInfo?.permanentAddress || "N/A",
+      mailingAddress: userInfo?.mailingAddress || "N/A",
+      emergencyContact: {
+        name: userInfo?.emergencyContact?.name || "N/A",
+        phoneNumber: userInfo?.emergencyContact?.phoneNumber || "",
+        relationship: userInfo?.emergencyContact?.relationShip || "N/A",
+      },
+      kyc,
+    };
+    const hubCode = useOnboardingStore.getState().hubCode;
+
+    if (!hubCode) {
+      showErrorToast("Hub code is required for registration");
+      return;
+    }
+    let response;
     try {
-      const kyc = [];
-      if (images.panCard) {
-        kyc.push({
-          documentType: images.panCardType || "image/jpeg",
-          documentNumber: images.panCard,
-        });
-      }
-      if (images.drivingLicense) {
-        kyc.push({
-          documentType: images.drivingLicenseType || "image/jpeg",
-          documentNumber: images.drivingLicense,
-        });
-      }
-
-      const registrationPayload = {
-        firstName: userInfo?.firstName || "",
-        lastName: userInfo?.lastName || "",
-        driverCountry: userInfo?.driverCategory || userInfo?.country || "India",
-        photoType: "image/jpeg",
-        photo: images.selfie || "",
-        phoneNumber: userInfo?.phoneNumber || "",
-        gender: userInfo?.gender || "",
-        email: userInfo?.email || "",
-        dateOfBirth: userInfo?.dateOfBirth || "",
-        dateOfJoining: userInfo?.dateOfJoining || "",
-        license: {
-          number: userInfo?.license?.number || "",
-          issuedOn: userInfo?.license?.issuedOn || Date.now(),
-          expiresOn: userInfo?.license?.expiresOn || "",
-          category: userInfo?.license?.category || "",
-        },
-        permanentAddress: userInfo?.permanentAddress || "N/A",
-        mailingAddress: userInfo?.mailingAddress || "N/A",
-        emergencyContact: {
-          name: userInfo?.emergencyContact?.name || "N/A",
-          phoneNumber: userInfo?.emergencyContact?.phoneNumber || "",
-          relationship: userInfo?.emergencyContact?.relationShip || "N/A",
-        },
-        kyc,
-      };
-      const hubCode = useOnboardingStore.getState().hubCode;
-
-      if (!hubCode) {
-        showErrorToast("Hub code is required for registration");
-        return;
-      }
-      const response = await backendService.registerUser(
+      response = await backendService.registerUser(
         registrationPayload,
         hubCode
       );
-      console.log('response', response.data);
-
-
-      if (response.data?.token) {
-        storageService.setItem("token", response.data.token);
-        setUserInfo({});
-        showSuccessToast("Registration completed successfully!");
-        navigation.navigate("MainTabs");
-      } else {
-        const errorResponse = response.data?.error;
-        console.log('errorResponse', errorResponse);
-        showErrorToast(
-          errorResponse || "Registration failed. Please try again."
-        );
-      }
     } catch (error: any) {
-      console.log('error', error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Registration failed. Please try again.";
+      let errorMessage = "Registration failed. Please try again.";
+      
+      if (error.response?.data?.error) {
+        const errorData = error.response.data.error;
+        if (typeof errorData === 'object' && errorData.body && Array.isArray(errorData.body)) {
+          const firstError = errorData.body[0];
+          if (firstError && firstError.message) {
+            errorMessage = firstError.message;
+          }
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      if(errorMessage?.toLowerCase().includes('validation error')) {
+        errorMessage = 'Please Check Email and Phone Number';
+      }
       showErrorToast(errorMessage);
-    } finally {
       setIsSubmitting(false);
+      return;
     }
+
+    if (response?.token) {
+      storageService.setItem("token", response?.token);
+      setUserInfo({});
+      showSuccessToast("Registration completed successfully!");
+      navigation.navigate("MainTabs");
+    } else {
+      showErrorToast("Registration failed. Please try again.");
+    }
+    setIsSubmitting(false);
   };
 
   const getRequiredDocuments = () => {

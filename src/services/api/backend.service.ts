@@ -54,8 +54,10 @@ export const backendService = {
     const response = await BackendApi.post("/user/trip/unassign", payload);
     return response.data;
   },
-  registerUser: (data: UserRegistrationRequest, hubCode: string) =>
-    BackendApi.post(`/user/register?hubCode=${hubCode}`, data),
+  registerUser: async (data: UserRegistrationRequest, hubCode: string) => {
+    const response = await BackendApi.post(`/user/register?hubCode=${hubCode}`, data);
+    return response.data;
+  },
 };
 
 export const fetchDriverImage = async (

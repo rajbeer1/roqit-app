@@ -5,9 +5,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
-  Image,
   Modal,
-  FlatList,
+  Dimensions,
 } from "react-native";
 import {
   useNavigation,
@@ -22,6 +21,8 @@ import RNSwipeButton from "rn-swipe-button";
 import VehicleSelectorModal from "../components/ui/VehicleSelectorModal";
 import * as Location from "expo-location";
 import type { RootStackParamList } from "../navigation/AppNavigator";
+
+const SWIPE_WIDTH = Math.round(Dimensions.get('window').width * 0.7);
 
 const Home = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -274,15 +275,15 @@ const Home = () => {
                   ? new Date(inProgressTrip.tripStartDate).getFullYear()
                   : "--"
               }`}</Text>
-              <View style={styles.slideRow}>
+              <View style={styles.slideRowCentered}>
                 {inProgressTrip ? (
                   <RNSwipeButton
                     containerStyles={{
-                      flex: 1,
+                      width: SWIPE_WIDTH,
+                      alignSelf: 'center',
                       backgroundColor: "transparent",
                     }}
                     height={44}
-                    width={260}
                     railBackgroundColor="#e8f8f2"
                     thumbIconBackgroundColor="#111"
                     title="Slide Arrow Check Out"
@@ -299,11 +300,11 @@ const Home = () => {
                 ) : (
                   <RNSwipeButton
                     containerStyles={{
-                      flex: 1,
+                      width: SWIPE_WIDTH,
+                      alignSelf: 'center',
                       backgroundColor: "transparent",
                     }}
                     height={44}
-                    width={260}
                     railBackgroundColor="#fff"
                     thumbIconBackgroundColor="#111"
                     title="Slide Arrow Check In"
@@ -320,27 +321,15 @@ const Home = () => {
                 )}
               </View>
             </View>
-            {!inProgressTrip && (
-              <Text style={styles.swipeText}>Swipe right to Check In</Text>
-            )}
             {inProgressTrip && (
               <View style={styles.tripCard}>
-                <View style={styles.tripHeaderRow}>
-                  <View style={styles.statusActiveTag}>
-                    <Text style={styles.statusActiveTagText}>
-                      Status: Active
-                    </Text>
-                  </View>
-                  <Text style={styles.hubText}>
-                    HUB: {user?.operation?.name}
+                <View style={styles.tripHeaderRowNew}>
+                  <Text style={styles.hubTextBig}>
+                  <Text style={{ fontWeight: 'bold' }}> HUB: </Text> {user?.operation?.name}
                   </Text>
-                  <View style={styles.batteryRow}>
-                    <Text style={styles.batteryText}>Battery: </Text>
-                    <Text style={styles.batteryText}>
-                      {inProgressTrip.battery}%
-                    </Text>
-                  </View>
-                  {/* <TouchableOpacity style={styles.helpBtn}><Text style={styles.helpBtnText}>Help</Text></TouchableOpacity> */}
+                  <Text style={styles.batteryTextBig}>
+                    <Text style={{ fontWeight: 'bold' }}> Battery: </Text> {inProgressTrip?.vehicleMetaTripStart?.location?.soc || inProgressTrip?.vehicleMetaTripStart?.location?.batteryPercentage}%
+                  </Text>
                 </View>
                 <View
                   style={{
@@ -354,10 +343,6 @@ const Home = () => {
                     <Text style={styles.tripInfo}>
                       <Text style={styles.tripInfoLabel}>Assigned to:</Text>{" "}
                       {user?.firstName} {user?.lastName}
-                    </Text>
-                    <Text style={styles.tripInfo}>
-                      <Text style={styles.tripInfoLabel}>Fleet Manager:</Text>{" "}
-                      {inProgressTrip?.fleetManager}
                     </Text>
                     <Text style={styles.tripInfo}>
                       <Text style={styles.tripInfoLabel}>Vehicle:</Text>{" "}
@@ -546,6 +531,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 2,
   },
+  slideRowCentered: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: 'center',
+    marginTop: 10,
+    marginBottom: 2,
+  },
   slideBtnActive: {
     width: 48,
     height: 40,
@@ -618,6 +610,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
+  tripHeaderRowNew: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
   statusActiveTag: {
     backgroundColor: "#e8f8f2",
     borderRadius: 8,
@@ -635,6 +634,10 @@ const styles = StyleSheet.create({
     color: "#222",
     marginRight: 8,
   },
+  hubTextBig: {
+    fontSize: 16,
+    color: '#222',
+  },
   batteryRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -645,22 +648,14 @@ const styles = StyleSheet.create({
     color: "#222",
     marginLeft: 2,
   },
-  helpBtn: {
-    backgroundColor: "#ff5a5f",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    marginLeft: "auto",
-  },
-  helpBtnText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 13,
+  batteryTextBig: {
+    fontSize: 16,
+    color: '#222',
   },
   tripInfo: {
     fontSize: 14,
     color: "#222",
-    marginBottom: 2,
+    marginBottom: 8, 
   },
   tripInfoLabel: {
     fontWeight: "600",

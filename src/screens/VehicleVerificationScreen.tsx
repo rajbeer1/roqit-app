@@ -167,7 +167,6 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
             })
           );
         } catch (error) {
-          console.log(error);
           showErrorToast("Check-out failed");
         } finally {
           setLoading(false);
