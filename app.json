@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "roqit-app-new",
-    "slug": "roqit-app-new",
+    "slug": "roqit-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -37,6 +37,12 @@
     },
     "plugins": [
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "9040c6ad-33ab-4e0e-9020-8697d948a875"
+      }
+    },
+    "owner": "ravaan1"
   }
 }
