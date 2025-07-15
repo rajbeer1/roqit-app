@@ -38,7 +38,9 @@
     "expo-location": "~18.1.6",
     "expo-image-manipulator": "~13.1.7",
     "react-native-maps": "1.20.1",
-    "@react-native-community/datetimepicker": "8.4.1"
+    "@react-native-community/datetimepicker": "8.4.1",
+    "expo-dev-client": "~5.2.4",
+    "react-native-gesture-handler": "~2.24.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

@@ -53,6 +53,7 @@
     },
     "plugins": [
       "expo-secure-store",
+      "react-native-gesture-handler",
       [
         "expo-camera",
         {
