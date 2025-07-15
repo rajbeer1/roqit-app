@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "roqit-app-new",
+    "name": "roqit-app",
     "slug": "roqit-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,17 +13,17 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "config": {
-        "googleMaps": {
-          "apiKey": "process.env.GOOGLE_MAPS_API_KEY"
-        }
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs access to the camera to take photos.",
+        "ITSAppUsesNonExemptEncryption": false
       },
+      "bundleIdentifier": "com.rajbeer11.roqitapp",
       "supportsTablet": true
     },
     "android": {
       "config": {
         "googleMaps": {
-          "apiKey": "process.env.GOOGLE_MAPS_API_KEY"
+          "apiKey": "AIzaSyBQmnLW023firNhFBLdQVyhTZeqXIIYEuE"
         }
       },
       "adaptiveIcon": {
@@ -32,7 +32,19 @@
       },
       "edgeToEdgeEnabled": true,
       "jsEngine": "hermes",
-      "package": "com.ravaan1.roqit"
+      "package": "com.rajbeer11.roqitapp",
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.WAKE_LOCK",
+        "android.permission.VIBRATE",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -54,9 +66,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "9040c6ad-33ab-4e0e-9020-8697d948a875"
+        "projectId": "0804ff3f-c80d-4455-a0d4-84fb0d77ebcd"
       }
     },
-    "owner": "ravaan1"
+    "owner": "rajbeer11"
   }
 }

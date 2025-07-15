@@ -31,6 +31,8 @@ const Home = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [geoErrorModal, setGeoErrorModal] = useState(false);
   const [geoErrorMsg, setGeoErrorMsg] = useState("");
+  const [checkInLoading, setCheckInLoading] = useState(false);
+  const [checkOutLoading, setCheckOutLoading] = useState(false);
 
   const formatTime = (sec: number) => {
     const h = String(Math.floor(sec / 3600)).padStart(2, "0");
@@ -77,26 +79,36 @@ const Home = () => {
   }, [navigation]);
 
   const handleCheckIn = async () => {
-    const inGeofence = await checkGeofence("checkin");
-    if (inGeofence === true) {
-      setModalVisible(true);
-    } else {
-      setGeoErrorModal(true);
+    setCheckInLoading(true);
+    try {
+      const inGeofence = await checkGeofence("checkin");
+      if (inGeofence === true) {
+        setModalVisible(true);
+      } else {
+        setGeoErrorModal(true);
+      }
+    } finally {
+      setCheckInLoading(false);
     }
   };
   const handleCheckOut = async () => {
-    const inGeofence = await checkGeofence("checkout");
-    if (inGeofence === true) {
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [
-            { name: "VehicleVerification", params: { mode: "checkout" } },
-          ],
-        })
-      );
-    } else {
-      setGeoErrorModal(true);
+    setCheckOutLoading(true);
+    try {
+      const inGeofence = await checkGeofence("checkout");
+      if (inGeofence === true) {
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [
+              { name: "VehicleVerification", params: { mode: "checkout" } },
+            ],
+          })
+        );
+      } else {
+        setGeoErrorModal(true);
+      }
+    } finally {
+      setCheckOutLoading(false);
     }
   };
   const handleVehicleSelect = (vehicle: any) => {
@@ -277,47 +289,65 @@ const Home = () => {
               }`}</Text>
               <View style={styles.slideRowCentered}>
                 {inProgressTrip ? (
-                  <RNSwipeButton
-                    containerStyles={{
-                      width: SWIPE_WIDTH,
-                      alignSelf: 'center',
-                      backgroundColor: "transparent",
-                    }}
-                    height={44}
-                    railBackgroundColor="#e8f8f2"
-                    thumbIconBackgroundColor="#111"
-                    title="Slide Arrow Check Out"
-                    titleStyles={{
-                      color: "#00994C",
-                      fontWeight: "600",
-                      fontSize: 16,
-                    }}
-                    onSwipeSuccess={handleCheckOut}
-                    railFillBackgroundColor="#00994C"
-                    railFillBorderColor="#00994C"
-                    shouldResetAfterSuccess={true}
-                  />
+                  <View style={{ width: SWIPE_WIDTH, alignSelf: 'center' }}>
+                    {checkOutLoading ? (
+                      <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="small" color="#00994C" />
+                        <Text style={styles.loadingText}>Checking location...</Text>
+                      </View>
+                    ) : (
+                      <RNSwipeButton
+                        containerStyles={{
+                          width: SWIPE_WIDTH,
+                          alignSelf: 'center',
+                          backgroundColor: "transparent",
+                        }}
+                        height={44}
+                        railBackgroundColor="#e8f8f2"
+                        thumbIconBackgroundColor="#111"
+                        title="Slide Arrow Check Out"
+                        titleStyles={{
+                          color: "#00994C",
+                          fontWeight: "600",
+                          fontSize: 16,
+                        }}
+                        onSwipeSuccess={handleCheckOut}
+                        railFillBackgroundColor="#00994C"
+                        railFillBorderColor="#00994C"
+                        shouldResetAfterSuccess={true}
+                      />
+                    )}
+                  </View>
                 ) : (
-                  <RNSwipeButton
-                    containerStyles={{
-                      width: SWIPE_WIDTH,
-                      alignSelf: 'center',
-                      backgroundColor: "transparent",
-                    }}
-                    height={44}
-                    railBackgroundColor="#fff"
-                    thumbIconBackgroundColor="#111"
-                    title="Slide Arrow Check In"
-                    titleStyles={{
-                      color: "#888",
-                      fontWeight: "600",
-                      fontSize: 16,
-                    }}
-                    onSwipeSuccess={handleCheckIn}
-                    railFillBackgroundColor="#00994C"
-                    railFillBorderColor="#00994C"
-                    shouldResetAfterSuccess={true}
-                  />
+                  <View style={{ width: SWIPE_WIDTH, alignSelf: 'center' }}>
+                    {checkInLoading ? (
+                      <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="small" color="#00994C" />
+                        <Text style={styles.loadingText}>Checking location...</Text>
+                      </View>
+                    ) : (
+                      <RNSwipeButton
+                        containerStyles={{
+                          width: SWIPE_WIDTH,
+                          alignSelf: 'center',
+                          backgroundColor: "transparent",
+                        }}
+                        height={44}
+                        railBackgroundColor="#fff"
+                        thumbIconBackgroundColor="#111"
+                        title="Slide Arrow Check In"
+                        titleStyles={{
+                          color: "#888",
+                          fontWeight: "600",
+                          fontSize: 16,
+                        }}
+                        onSwipeSuccess={handleCheckIn}
+                        railFillBackgroundColor="#00994C"
+                        railFillBorderColor="#00994C"
+                        shouldResetAfterSuccess={true}
+                      />
+                    )}
+                  </View>
                 )}
               </View>
             </View>
@@ -697,6 +727,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#e8f8f2",
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    height: 44,
+  },
+  loadingText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#00994C",
   },
 });
 

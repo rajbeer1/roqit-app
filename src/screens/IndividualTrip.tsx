@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, Text } from "react-native";
+import { View, StyleSheet, Text, ActivityIndicator } from "react-native";
 import Header from "../components/ui/Header";
 import { useRoute } from "@react-navigation/native";
 import { RootStackParamList } from "../navigation/AppNavigator";
@@ -20,16 +20,41 @@ const IndividualTrip = () => {
   const { trip } = route.params || {};
   const [tripData, setTripData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTripData = async () => {
+      if (!trip?.id) {
+        setError("Invalid trip data");
+        return;
+      }
+      
       setLoading(true);
-      const data = await backendService.getTrip(trip.id);
-      setTripData(data);
-      setLoading(false);
+      setError(null);
+      try {
+        const data = await backendService.getTrip(trip.id);
+        setTripData(data);
+      } catch (err: any) {
+        setError(err?.response?.data?.message || "Failed to load trip data");
+      } finally {
+        setLoading(false);
+      }
     };
     fetchTripData();
   }, [trip]);
+
+  const isValidCoordinate = (lat: any, lng: any): boolean => {
+    return (
+      lat != null &&
+      lng != null &&
+      !isNaN(Number(lat)) &&
+      !isNaN(Number(lng)) &&
+      Number(lat) >= -90 &&
+      Number(lat) <= 90 &&
+      Number(lng) >= -180 &&
+      Number(lng) <= 180
+    );
+  };
 
   const startLat = tripData?.startAddress?.latitude;
   const startLng = tripData?.startAddress?.longitude;
@@ -39,34 +64,37 @@ const IndividualTrip = () => {
   let coordinates: { latitude: number; longitude: number }[] = [];
 
   if (Array.isArray(tripData?.dataPoints) && tripData.dataPoints.length > 0) {
-    coordinates = tripData.dataPoints.map((pt: any) => ({
-      latitude: pt.latitude,
-      longitude: pt.longitude,
-    }));
-    if (
-      startLat &&
-      startLng &&
-      (coordinates.length === 0 ||
-        coordinates[0].latitude !== startLat ||
-        coordinates[0].longitude !== startLng)
-    ) {
-      coordinates.unshift({ latitude: startLat, longitude: startLng });
+    coordinates = tripData.dataPoints
+      .filter((pt: any) => isValidCoordinate(pt.latitude, pt.longitude))
+      .map((pt: any) => ({
+        latitude: Number(pt.latitude),
+        longitude: Number(pt.longitude),
+      }));
+    
+    if (isValidCoordinate(startLat, startLng)) {
+      const startCoord = { latitude: Number(startLat), longitude: Number(startLng) };
+      if (coordinates.length === 0 || 
+          coordinates[0].latitude !== startCoord.latitude || 
+          coordinates[0].longitude !== startCoord.longitude) {
+        coordinates.unshift(startCoord);
+      }
     }
-    if (
-      endLat &&
-      endLng &&
-      (coordinates.length === 0 ||
-        coordinates[coordinates.length - 1].latitude !== endLat ||
-        coordinates[coordinates.length - 1].longitude !== endLng)
-    ) {
-      coordinates.push({ latitude: endLat, longitude: endLng });
+
+    if (isValidCoordinate(endLat, endLng)) {
+      const endCoord = { latitude: Number(endLat), longitude: Number(endLng) };
+      if (coordinates.length === 0 || 
+          coordinates[coordinates.length - 1].latitude !== endCoord.latitude || 
+          coordinates[coordinates.length - 1].longitude !== endCoord.longitude) {
+        coordinates.push(endCoord);
+      }
     }
-  } else if (startLat && startLng && endLat && endLng) {
+  } else if (isValidCoordinate(startLat, startLng) && isValidCoordinate(endLat, endLng)) {
     coordinates = [
-      { latitude: startLat, longitude: startLng },
-      { latitude: endLat, longitude: endLng },
+      { latitude: Number(startLat), longitude: Number(startLng) },
+      { latitude: Number(endLat), longitude: Number(endLng) },
     ];
   }
+
   const initialRegion =
     coordinates.length > 0
       ? {
@@ -82,6 +110,17 @@ const IndividualTrip = () => {
           longitudeDelta: 0.01,
         };
 
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Header />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Header />
@@ -90,7 +129,10 @@ const IndividualTrip = () => {
       </View>
       <View style={styles.mapContainer}>
         {loading ? (
-          <Text style={styles.mapPlaceholder}>Loading...</Text>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#1565c0" />
+            <Text style={styles.loadingText}>Loading trip data...</Text>
+          </View>
         ) : (
           <MapView
             style={styles.map}
@@ -104,16 +146,16 @@ const IndividualTrip = () => {
                 strokeWidth={4}
               />
             )}
-            {startLat && startLng && (
+            {isValidCoordinate(startLat, startLng) && (
               <Marker
-                coordinate={{ latitude: startLat, longitude: startLng }}
+                coordinate={{ latitude: Number(startLat), longitude: Number(startLng) }}
                 title="Start"
                 pinColor="green"
               />
             )}
-            {endLat && endLng && (
+            {isValidCoordinate(endLat, endLng) && (
               <Marker
-                coordinate={{ latitude: endLat, longitude: endLng }}
+                coordinate={{ latitude: Number(endLat), longitude: Number(endLng) }}
                 title="End"
                 pinColor="red"
               />
@@ -149,6 +191,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#e0e0e0",
     alignItems: "center",
     justifyContent: "center",
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    color: "#888",
+    fontSize: 16,
+    marginTop: 8,
   },
   mapPlaceholder: {
     color: "#888",

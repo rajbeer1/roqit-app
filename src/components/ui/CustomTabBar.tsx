@@ -92,12 +92,13 @@ const styles = StyleSheet.create({
   iconWrapper: {
     width: 48,
     height: 40,
-    borderRadius: 16,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   activeIconWrapper: {
     backgroundColor: '#000',
+    borderRadius: 24,
   },
   label: {
     fontSize: 13,
