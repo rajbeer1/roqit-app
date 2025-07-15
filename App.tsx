@@ -1,11 +1,12 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import Toast from 'react-native-toast-message';
+import Toast from "react-native-toast-message";
 import { toastConfig } from "./src/services/ui/toasts";
-import { NavigationContainer } from '@react-navigation/native';
-import AppNavigator from './src/navigation/AppNavigator';
+import { NavigationContainer } from "@react-navigation/native";
+import AppNavigator from "./src/navigation/AppNavigator";
 import { storageService } from "./src/services/api/storage.service";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null; errorInfo: React.ErrorInfo | null }
@@ -20,7 +21,7 @@ class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Error Boundary caught an error:', error, errorInfo);
+    console.error("Error Boundary caught an error:", error, errorInfo);
     this.setState({ error, errorInfo });
   }
 
@@ -38,8 +39,12 @@ class ErrorBoundary extends React.Component<
           </Text>
           {__DEV__ && this.state.error && (
             <View style={styles.errorDetails}>
-              <Text style={styles.errorDetailsTitle}>Error Details (Development):</Text>
-              <Text style={styles.errorText}>{this.state.error.toString()}</Text>
+              <Text style={styles.errorDetailsTitle}>
+                Error Details (Development):
+              </Text>
+              <Text style={styles.errorText}>
+                {this.state.error.toString()}
+              </Text>
               {this.state.errorInfo && (
                 <Text style={styles.errorText}>
                   {this.state.errorInfo.componentStack}
@@ -47,7 +52,10 @@ class ErrorBoundary extends React.Component<
               )}
             </View>
           )}
-          <TouchableOpacity style={styles.restartButton} onPress={this.handleRestart}>
+          <TouchableOpacity
+            style={styles.restartButton}
+            onPress={this.handleRestart}
+          >
             <Text style={styles.restartButtonText}>Restart App</Text>
           </TouchableOpacity>
         </View>
@@ -61,71 +69,72 @@ class ErrorBoundary extends React.Component<
 const styles = StyleSheet.create({
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
     padding: 20,
   },
   errorTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#dc3545',
+    fontWeight: "bold",
+    color: "#dc3545",
     marginBottom: 10,
-    textAlign: 'center',
+    textAlign: "center",
   },
   errorMessage: {
     fontSize: 16,
-    color: '#6c757d',
-    textAlign: 'center',
+    color: "#6c757d",
+    textAlign: "center",
     marginBottom: 30,
     lineHeight: 24,
   },
   errorDetails: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: "#f8f9fa",
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
-    width: '100%',
+    width: "100%",
     maxHeight: 200,
   },
   errorDetailsTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#495057',
+    fontWeight: "bold",
+    color: "#495057",
     marginBottom: 8,
   },
   errorText: {
     fontSize: 12,
-    color: '#6c757d',
-    fontFamily: 'monospace',
+    color: "#6c757d",
+    fontFamily: "monospace",
   },
   restartButton: {
-    backgroundColor: '#007bff',
+    backgroundColor: "#007bff",
     paddingHorizontal: 30,
     paddingVertical: 12,
     borderRadius: 8,
   },
   restartButtonText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
 
 export default function App() {
-// (async () => {
-//   const token = await storageService.clear();
+  // (async () => {
+  //   const token = await storageService.clear();
 
-// })();
+  // })();
   return (
     <ErrorBoundary>
-      <SafeAreaProvider>
-        <NavigationContainer>
-          <AppNavigator />
-        </NavigationContainer>
-        <Toast config={toastConfig} />
-      </SafeAreaProvider>
+      <GestureHandlerRootView>
+        <SafeAreaProvider>
+          <NavigationContainer>
+            <AppNavigator />
+          </NavigationContainer>
+          <Toast config={toastConfig} />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     </ErrorBoundary>
   );
 }
-
