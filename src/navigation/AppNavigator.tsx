@@ -71,11 +71,15 @@ const AppNavigator = () => {
 
   useEffect(() => {
     (async () => {
-      const token = await storageService.getItem("token");
-      if (token) {
-        fetchUser();
+      try {
+        const token = await storageService.getItem("token");
+        if (token) {
+          await fetchUser();
+        }
+        setInitialRoute(token ? "MainTabs" : "Login");
+      } catch (error) {
+        setInitialRoute("Login");
       }
-      setInitialRoute(token ? "MainTabs" : "Login");
     })();
   }, []);
 

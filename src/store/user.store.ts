@@ -48,13 +48,17 @@ export const useUserStore = create<UserStoreState>()(
           get().setUser(user);
           set({ loading: false });
         } catch (error: any) {
-          showErrorToast(
-            error.response?.data?.message || "Failed to fetch user"
-          );
-          set({
-            loading: false,
-            error: error.response?.data?.message || "Failed to fetch user",
-          });
+          if (error.response?.data?.message) {
+            set({
+              loading: false,
+              error: error.response.data.message,
+            });
+          } else {
+            set({
+              loading: false,
+              error: "Failed to fetch user",
+            });
+          }
         }
       },
       setUser: (user: UserType) => {
