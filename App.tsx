@@ -6,9 +6,6 @@ import { toastConfig } from "./src/services/ui/toasts";
 import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { storageService } from "./src/services/api/storage.service";
-import 'react-native-gesture-handler';
-
-// Error Boundary Component
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null; errorInfo: React.ErrorInfo | null }
