@@ -1,7 +1,7 @@
 import axios from "axios";
 import { storageService } from "./storage.service";
-const IDENTITY_BASE_URL = process.env.EXPO_PUBLIC_IDENTITY_URL || 'https://identity.dev-roqit.com';
-const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://api.dev-roqit.com';
+const IDENTITY_BASE_URL = process.env.EXPO_PUBLIC_IDENTITY_URL || 'https://identity.app.roqit.com';
+const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://api.app.roqit.com';
 
 export const IdentityApi = axios.create({
   baseURL: IDENTITY_BASE_URL,
