@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "roqit-app",
+    "name": "Roqit",
     "slug": "roqit-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -26,7 +26,7 @@
           "apiKey": "AIzaSyBQmnLW023firNhFBLdQVyhTZeqXIIYEuE"
         }
       },
-      "usesCleartextTraffic": true,
+      "usesCleartextTraffic": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -34,6 +34,7 @@
       "edgeToEdgeEnabled": true,
       "jsEngine": "hermes",
       "package": "com.rajbeer11.roqitapp",
+      "versionCode": 1,
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
