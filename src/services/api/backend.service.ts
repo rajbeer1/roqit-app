@@ -54,12 +54,25 @@ export const backendService = {
     const response = await BackendApi.post("/user/trip/unassign", payload);
     return response.data;
   },
+  drivercheckin: async () => {
+    const response = await BackendApi.post("/user/checkin", {});
+    return response.data;
+  },
+  drivercheckout: async () => {
+    const response = await BackendApi.post("/user/checkout", {});
+    return response.data;
+  },
   registerUser: async (data: UserRegistrationRequest, hubCode: string) => {
-    const response = await BackendApi.post(`/user/register?hubCode=${hubCode}`, data);
+    const response = await BackendApi.post(
+      `/user/register?hubCode=${hubCode}`,
+      data
+    );
     return response.data;
   },
   getTrip: async (tripId: string) => {
-    const response = await BackendApi.get(`/trips/${tripId}?includeRoute=true&precision=true&requiredDPs[]=latitude&requiredDPs[]=longitude`);
+    const response = await BackendApi.get(
+      `/trips/${tripId}?includeRoute=true&precision=true&requiredDPs[]=latitude&requiredDPs[]=longitude`
+    );
     return response.data;
   },
 };

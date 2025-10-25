@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Modal,
   Dimensions,
+  ScrollView,
 } from "react-native";
 import {
   useNavigation,
@@ -14,6 +15,7 @@ import {
   NavigationProp,
 } from "@react-navigation/native";
 import { storageService } from "../services/api/storage.service";
+import { backendService } from "../services/api/backend.service";
 import Header from "../components/ui/Header";
 import { useUserStore } from "../store/user.store";
 // @ts-ignore
@@ -22,17 +24,20 @@ import VehicleSelectorModal from "../components/ui/VehicleSelectorModal";
 import * as Location from "expo-location";
 import type { RootStackParamList } from "../navigation/AppNavigator";
 
-const SWIPE_WIDTH = Math.round(Dimensions.get('window').width * 0.7);
+const SWIPE_WIDTH = Math.round(Dimensions.get("window").width * 0.7);
 
 const Home = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const { fetchUser, inProgressTrip, user, loading } = useUserStore();
+  const { fetchUser, inProgressTrip, reservedVehicle, user, loading } =
+    useUserStore();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [modalVisible, setModalVisible] = useState(false);
   const [geoErrorModal, setGeoErrorModal] = useState(false);
   const [geoErrorMsg, setGeoErrorMsg] = useState("");
   const [checkInLoading, setCheckInLoading] = useState(false);
   const [checkOutLoading, setCheckOutLoading] = useState(false);
+  const [driverCheckInLoading, setDriverCheckInLoading] = useState(false);
+  const [driverCheckOutLoading, setDriverCheckOutLoading] = useState(false);
 
   const formatTime = (sec: number) => {
     const h = String(Math.floor(sec / 3600)).padStart(2, "0");
@@ -109,6 +114,40 @@ const Home = () => {
       }
     } finally {
       setCheckOutLoading(false);
+    }
+  };
+
+  const handleDriverCheckIn = async () => {
+    setDriverCheckInLoading(true);
+    try {
+      const inGeofence = await checkGeofence("checkin");
+      if (inGeofence === true) {
+        await backendService.drivercheckin();
+        await fetchUser();
+      } else {
+        setGeoErrorModal(true);
+      }
+    } catch (error) {
+      console.error("Driver check-in error:", error);
+    } finally {
+      setDriverCheckInLoading(false);
+    }
+  };
+
+  const handleDriverCheckOut = async () => {
+    setDriverCheckOutLoading(true);
+    try {
+      const inGeofence = await checkGeofence("checkout");
+      if (inGeofence === true) {
+        await backendService.drivercheckout();
+        await fetchUser();
+      } else {
+        setGeoErrorModal(true);
+      }
+    } catch (error) {
+      console.error("Driver check-out error:", error);
+    } finally {
+      setDriverCheckOutLoading(false);
     }
   };
   const handleVehicleSelect = (vehicle: any) => {
@@ -214,22 +253,381 @@ const Home = () => {
       return false;
     }
   };
-
   return (
     <View style={styles.container}>
       <Header />
-      <View style={styles.content}>
-        {loading ? (
+      {user?.checkinStatus === "checked_in" && (
+        <View style={styles.content}>
+          {loading ? (
+            <ActivityIndicator size="large" color="#1565c0" />
+          ) : (
+            <>
+              <Text style={styles.greeting}>
+                Good Morning! {user?.firstName}
+              </Text>
+              <View
+                style={[
+                  styles.statusCard,
+                  inProgressTrip ? styles.activeCard : styles.inactiveCard,
+                ]}
+              >
+                <View style={styles.statusRow}>
+                  <Text style={styles.statusLabel}>Status</Text>
+                  <View style={styles.statusDotRow}>
+                    <View
+                      style={[
+                        styles.statusDot,
+                        {
+                          backgroundColor: inProgressTrip
+                            ? "#00994C"
+                            : "#B71C1C",
+                        },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.statusText,
+                        { color: inProgressTrip ? "#00994C" : "#B71C1C" },
+                      ]}
+                    >
+                      {(() => {
+                        if (
+                          user?.status &&
+                          user?.checkinStatus !== "checked_out"
+                        ) {
+                          return user.status.replace(/_/g, " ");
+                        }
+                        if (user?.checkinStatus === "checked_out") {
+                          return "Checked Out";
+                        }
+                        return inProgressTrip ? "Active" : "Offline";
+                      })()}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.timer}>
+                  {inProgressTrip ? timerDisplay : "00:00:00"}
+                </Text>
+                <View style={styles.checkRow}>
+                  <Text style={styles.checkText}>
+                    {inProgressTrip
+                      ? new Date(
+                          inProgressTrip.tripStartDate
+                        ).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "--:--"}
+                  </Text>
+                  <Text style={styles.checkLabel}>Check in</Text>
+                  <View style={{ flex: 1 }} />
+                  <Text style={styles.checkText}>{"--:--"}</Text>
+                  <Text style={styles.checkLabel}>Check out</Text>
+                </View>
+                <Text style={styles.dateText}>{`${
+                  inProgressTrip
+                    ? new Date(inProgressTrip.tripStartDate).getDate()
+                    : "--"
+                }-${
+                  inProgressTrip
+                    ? new Date(inProgressTrip.tripStartDate).toLocaleString(
+                        "default",
+                        { month: "short" }
+                      )
+                    : "--"
+                }-${
+                  inProgressTrip
+                    ? new Date(inProgressTrip.tripStartDate).getFullYear()
+                    : "--"
+                }`}</Text>
+                {user?.checkinStatus === "checked_in" &&
+                  user?.status === "active" && (
+                    <View style={styles.checkOutButtonContainer}>
+                      {driverCheckOutLoading ? (
+                        <View style={styles.loadingContainer}>
+                          <ActivityIndicator size="small" color="#B71C1C" />
+                          <Text style={styles.loadingText}>
+                            Checking location...
+                          </Text>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={styles.checkOutButton}
+                          onPress={handleDriverCheckOut}
+                        >
+                          <Text style={styles.checkOutButtonText}>
+                            Check Out
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                <View style={styles.slideRowCentered}>
+                  {inProgressTrip ? (
+                    <View style={{ width: SWIPE_WIDTH, alignSelf: "center" }}>
+                      {checkOutLoading ? (
+                        <View style={styles.loadingContainer}>
+                          <ActivityIndicator size="small" color="#00994C" />
+                          <Text style={styles.loadingText}>
+                            Checking location...
+                          </Text>
+                        </View>
+                      ) : (
+                        <RNSwipeButton
+                          containerStyles={{
+                            width: SWIPE_WIDTH,
+                            alignSelf: "center",
+                            backgroundColor: "transparent",
+                          }}
+                          height={44}
+                          railBackgroundColor="#e8f8f2"
+                          thumbIconBackgroundColor="#111"
+                          title="Slide to stop trip"
+                          titleStyles={{
+                            color: "#00994C",
+                            fontWeight: "600",
+                            fontSize: 16,
+                          }}
+                          onSwipeSuccess={handleCheckOut}
+                          railFillBackgroundColor="#00994C"
+                          railFillBorderColor="#00994C"
+                          shouldResetAfterSuccess={true}
+                        />
+                      )}
+                    </View>
+                  ) : (
+                    <View style={{ width: SWIPE_WIDTH, alignSelf: "center" }}>
+                      {user?.status === "reserved" ? (
+                        <View style={styles.reservedContainer}>
+                          <Text style={styles.reservedText}>
+                            Driver is reserved
+                          </Text>
+                        </View>
+                      ) : checkInLoading ? (
+                        <View style={styles.loadingContainer}>
+                          <ActivityIndicator size="small" color="#00994C" />
+                          <Text style={styles.loadingText}>
+                            Checking location...
+                          </Text>
+                        </View>
+                      ) : (
+                        <RNSwipeButton
+                          containerStyles={{
+                            width: SWIPE_WIDTH,
+                            alignSelf: "center",
+                            backgroundColor: "transparent",
+                          }}
+                          height={44}
+                          railBackgroundColor="#fff"
+                          thumbIconBackgroundColor="#111"
+                          title="Slide to start trip"
+                          titleStyles={{
+                            color: "#888",
+                            fontWeight: "600",
+                            fontSize: 16,
+                          }}
+                          onSwipeSuccess={handleCheckIn}
+                          railFillBackgroundColor="#00994C"
+                          railFillBorderColor="#00994C"
+                          shouldResetAfterSuccess={true}
+                        />
+                      )}
+                    </View>
+                  )}
+                </View>
+              </View>
+              <ScrollView
+                style={styles.scrollContainer}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
+              >
+                {(inProgressTrip || user?.trip) && (
+                  <View style={styles.tripCard}>
+                    <View style={styles.tripHeaderRowNew}>
+                      <Text style={styles.hubTextBig}>
+                        <Text style={{ fontWeight: "bold" }}> HUB: </Text>{" "}
+                        {user?.operation?.name
+                          ? user.operation.name.length > 12
+                            ? user.operation.name.slice(0, 12) + "…"
+                            : user.operation.name
+                          : ""}
+                      </Text>
+                      <Text style={styles.batteryTextBig}>
+                        <Text style={{ fontWeight: "bold" }}> Battery: </Text>{" "}
+                        {(inProgressTrip || user?.trip)?.vehicleMetaTripStart
+                          ?.location?.soc ||
+                          (inProgressTrip || user?.trip)?.vehicleMetaTripStart
+                            ?.location?.batteryPercentage ||
+                          "N/A"}
+                        %
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginBottom: 8,
+                        marginLeft: 10,
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.tripInfo}>
+                          <Text style={styles.tripInfoLabel}>Assigned to:</Text>{" "}
+                          {user?.firstName} {user?.lastName}
+                        </Text>
+                        <Text style={styles.tripInfo}>
+                          <Text style={styles.tripInfoLabel}>Vehicle:</Text>{" "}
+                          {(inProgressTrip || user?.trip)?.vehicle?.usageType ||
+                            "N/A"}
+                        </Text>
+                        <Text style={styles.tripInfo}>
+                          <Text style={styles.tripInfoLabel}>
+                            License Plate:
+                          </Text>{" "}
+                          {(inProgressTrip || user?.trip)?.vehicle
+                            ?.licensePlate || "N/A"}
+                        </Text>
+                        <Text style={styles.tripInfo}>
+                          <Text style={styles.tripInfoLabel}>
+                            Return Vehicle:
+                          </Text>{" "}
+                          {(inProgressTrip || user?.trip)?.tripStartDate
+                            ? (() => {
+                                const start = new Date(
+                                  (inProgressTrip || user?.trip).tripStartDate
+                                );
+                                const returnTime = new Date(
+                                  start.getTime() + 8 * 60 * 60 * 1000
+                                );
+                                return returnTime.toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                });
+                              })()
+                            : "--:--"}
+                        </Text>
+                      </View>
+                    </View>
+                    {(inProgressTrip || user?.trip)?.stops && 
+                     Array.isArray((inProgressTrip || user?.trip).stops) && 
+                     (inProgressTrip || user?.trip).stops.length > 0 && (
+                      <View style={styles.stopsSection}>
+                        <Text style={styles.stopsTitle}>Stops:</Text>
+                        {(inProgressTrip || user?.trip).stops.map((stop: any, index: number) => (
+                          <View key={index} style={styles.stopItem}>
+                            <Text style={styles.stopNumber}>{index + 1}.</Text>
+                            <Text style={styles.stopAddress}>{stop.address}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+                {reservedVehicle && (
+                  <View style={styles.tripCard}>
+                    <View style={styles.tripHeaderRowNew}>
+                      <Text style={styles.hubTextBig}>
+                        <Text style={{ fontWeight: "bold" }}>
+                          {" "}
+                          Reserved Vehicle
+                        </Text>
+                      </Text>
+                      <Text style={styles.batteryTextBig}>
+                        <Text style={{ fontWeight: "bold" }}> Status: </Text>{" "}
+                        {inProgressTrip ? "On Trip" : "Reserved"}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginBottom: 8,
+                        marginLeft: 10,
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.tripInfo}>
+                          <Text style={styles.tripInfoLabel}>
+                            License Plate:
+                          </Text>{" "}
+                          {reservedVehicle?.licensePlate || "N/A"}
+                        </Text>
+                        <Text style={styles.tripInfo}>
+                          <Text style={styles.tripInfoLabel}>VIN:</Text>{" "}
+                          {reservedVehicle?.vin || "N/A"}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+              </ScrollView>
+              <VehicleSelectorModal
+                visible={modalVisible}
+                onClose={() => setModalVisible(false)}
+                onVehicleSelected={handleVehicleSelect}
+              />
+              <Modal visible={geoErrorModal} transparent animationType="fade">
+                <View
+                  style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: "rgba(0,0,0,0.2)",
+                  }}
+                >
+                  <View
+                    style={{
+                      backgroundColor: "#fff",
+                      borderRadius: 20,
+                      padding: 28,
+                      alignItems: "center",
+                      width: 300,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 70,
+                        color: "#F44336",
+                        marginBottom: 10,
+                      }}
+                    >
+                      ⚠️
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 17,
+                        color: "#888792",
+                        textAlign: "center",
+                        marginBottom: 10,
+                      }}
+                    >
+                      {geoErrorMsg || (
+                        <>
+                          You are not in the operation HUB to{" "}
+                          <Text style={{ color: "#1565c0" }}>Clock</Text>
+                        </>
+                      )}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setGeoErrorModal(false)}
+                      style={{ position: "absolute", top: 10, right: 10 }}
+                    >
+                      <Text style={{ fontSize: 28, color: "#222" }}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Modal>
+            </>
+          )}
+        </View>
+      )}
+      {user?.checkinStatus === "checked_out" &&
+        (loading ? (
           <ActivityIndicator size="large" color="#1565c0" />
         ) : (
-          <>
+          <View style={styles.content}>
             <Text style={styles.greeting}>Good Morning! {user?.firstName}</Text>
-            <View
-              style={[
-                styles.statusCard,
-                inProgressTrip ? styles.activeCard : styles.inactiveCard,
-              ]}
-            >
+            <View style={[styles.statusCard, styles.inactiveCard]}>
               <View style={styles.statusRow}>
                 <Text style={styles.statusLabel}>Status</Text>
                 <View style={styles.statusDotRow}>
@@ -237,227 +635,51 @@ const Home = () => {
                     style={[
                       styles.statusDot,
                       {
-                        backgroundColor: inProgressTrip ? "#00994C" : "#B71C1C",
+                        backgroundColor: "#B71C1C",
                       },
                     ]}
                   />
-                  <Text
-                    style={[
-                      styles.statusText,
-                      { color: inProgressTrip ? "#00994C" : "#B71C1C" },
-                    ]}
-                  >
-                    {inProgressTrip ? "Active" : "Offline"}
+                  <Text style={[styles.statusText, { color: "#B71C1C" }]}>
+                    Checked Out
                   </Text>
                 </View>
               </View>
-              <Text style={styles.timer}>
-                {inProgressTrip ? timerDisplay : "00:00:00"}
-              </Text>
-              <View style={styles.checkRow}>
-                <Text style={styles.checkText}>
-                  {inProgressTrip
-                    ? new Date(inProgressTrip.tripStartDate).toLocaleTimeString(
-                        [],
-                        {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }
-                      )
-                    : "--:--"}
-                </Text>
-                <Text style={styles.checkLabel}>Check in</Text>
-                <View style={{ flex: 1 }} />
-                <Text style={styles.checkText}>{"--:--"}</Text>
-                <Text style={styles.checkLabel}>Check out</Text>
-              </View>
-              <Text style={styles.dateText}>{`${
-                inProgressTrip
-                  ? new Date(inProgressTrip.tripStartDate).getDate()
-                  : "--"
-              }-${
-                inProgressTrip
-                  ? new Date(inProgressTrip.tripStartDate).toLocaleString(
-                      "default",
-                      { month: "short" }
-                    )
-                  : "--"
-              }-${
-                inProgressTrip
-                  ? new Date(inProgressTrip.tripStartDate).getFullYear()
-                  : "--"
-              }`}</Text>
               <View style={styles.slideRowCentered}>
-                {inProgressTrip ? (
-                  <View style={{ width: SWIPE_WIDTH, alignSelf: 'center' }}>
-                    {checkOutLoading ? (
-                      <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="small" color="#00994C" />
-                        <Text style={styles.loadingText}>Checking location...</Text>
-                      </View>
-                    ) : (
-                      <RNSwipeButton
-                        containerStyles={{
-                          width: SWIPE_WIDTH,
-                          alignSelf: 'center',
-                          backgroundColor: "transparent",
-                        }}
-                        height={44}
-                        railBackgroundColor="#e8f8f2"
-                        thumbIconBackgroundColor="#111"
-                        title="Slide Arrow Check Out"
-                        titleStyles={{
-                          color: "#00994C",
-                          fontWeight: "600",
-                          fontSize: 16,
-                        }}
-                        onSwipeSuccess={handleCheckOut}
-                        railFillBackgroundColor="#00994C"
-                        railFillBorderColor="#00994C"
-                        shouldResetAfterSuccess={true}
-                      />
-                    )}
-                  </View>
-                ) : (
-                  <View style={{ width: SWIPE_WIDTH, alignSelf: 'center' }}>
-                    {checkInLoading ? (
-                      <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="small" color="#00994C" />
-                        <Text style={styles.loadingText}>Checking location...</Text>
-                      </View>
-                    ) : (
-                      <RNSwipeButton
-                        containerStyles={{
-                          width: SWIPE_WIDTH,
-                          alignSelf: 'center',
-                          backgroundColor: "transparent",
-                        }}
-                        height={44}
-                        railBackgroundColor="#fff"
-                        thumbIconBackgroundColor="#111"
-                        title="Slide Arrow Check In"
-                        titleStyles={{
-                          color: "#888",
-                          fontWeight: "600",
-                          fontSize: 16,
-                        }}
-                        onSwipeSuccess={handleCheckIn}
-                        railFillBackgroundColor="#00994C"
-                        railFillBorderColor="#00994C"
-                        shouldResetAfterSuccess={true}
-                      />
-                    )}
-                  </View>
-                )}
+                <View style={{ width: SWIPE_WIDTH, alignSelf: "center" }}>
+                  {driverCheckInLoading ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size="small" color="#00994C" />
+                      <Text style={styles.loadingText}>
+                        Checking location...
+                      </Text>
+                    </View>
+                  ) : (
+                    <RNSwipeButton
+                      containerStyles={{
+                        width: SWIPE_WIDTH,
+                        alignSelf: "center",
+                        backgroundColor: "transparent",
+                      }}
+                      height={44}
+                      railBackgroundColor="#fff"
+                      thumbIconBackgroundColor="#111"
+                      title="Slide to check in"
+                      titleStyles={{
+                        color: "#888",
+                        fontWeight: "600",
+                        fontSize: 16,
+                      }}
+                      onSwipeSuccess={handleDriverCheckIn}
+                      railFillBackgroundColor="#00994C"
+                      railFillBorderColor="#00994C"
+                      shouldResetAfterSuccess={true}
+                    />
+                  )}
+                </View>
               </View>
             </View>
-            {inProgressTrip && (
-              <View style={styles.tripCard}>
-                <View style={styles.tripHeaderRowNew}>
-                  <Text style={styles.hubTextBig}>
-                    <Text style={{ fontWeight: 'bold' }}> HUB: </Text> {user?.operation?.name ? (user.operation.name.length > 12 ? user.operation.name.slice(0, 12) + '…' : user.operation.name) : ''}
-                  </Text>
-                  <Text style={styles.batteryTextBig}>
-                    <Text style={{ fontWeight: 'bold' }}> Battery: </Text> {inProgressTrip?.vehicleMetaTripStart?.location?.soc || inProgressTrip?.vehicleMetaTripStart?.location?.batteryPercentage || 'N/A'}%
-                  </Text>
-                </View>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginBottom: 8,
-                    marginLeft: 10,
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.tripInfo}>
-                      <Text style={styles.tripInfoLabel}>Assigned to:</Text>{" "}
-                      {user?.firstName} {user?.lastName}
-                    </Text>
-                    <Text style={styles.tripInfo}>
-                      <Text style={styles.tripInfoLabel}>Vehicle:</Text>{" "}
-                      {inProgressTrip?.vehicle?.usageType}
-                    </Text>
-                    <Text style={styles.tripInfo}>
-                      <Text style={styles.tripInfoLabel}>License Plate:</Text>{" "}
-                      {inProgressTrip?.vehicle?.licensePlate}
-                    </Text>
-                    <Text style={styles.tripInfo}>
-                      <Text style={styles.tripInfoLabel}>Return Vehicle:</Text>{" "}
-                      {inProgressTrip?.tripStartDate
-                        ? (() => {
-                            const start = new Date(
-                              inProgressTrip.tripStartDate
-                            );
-                            const returnTime = new Date(
-                              start.getTime() + 8 * 60 * 60 * 1000
-                            );
-                            return returnTime.toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            });
-                          })()
-                        : "--:--"}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-            <VehicleSelectorModal
-              visible={modalVisible}
-              onClose={() => setModalVisible(false)}
-              onVehicleSelected={handleVehicleSelect}
-            />
-            <Modal visible={geoErrorModal} transparent animationType="fade">
-              <View
-                style={{
-                  flex: 1,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  backgroundColor: "rgba(0,0,0,0.2)",
-                }}
-              >
-                <View
-                  style={{
-                    backgroundColor: "#fff",
-                    borderRadius: 20,
-                    padding: 28,
-                    alignItems: "center",
-                    width: 300,
-                  }}
-                >
-                  <Text
-                    style={{ fontSize: 70, color: "#F44336", marginBottom: 10 }}
-                  >
-                    ⚠️
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 17,
-                      color: "#888792",
-                      textAlign: "center",
-                      marginBottom: 10,
-                    }}
-                  >
-                    {geoErrorMsg || (
-                      <>
-                        You are not in the operation HUB to{" "}
-                        <Text style={{ color: "#1565c0" }}>Clock</Text>
-                      </>
-                    )}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setGeoErrorModal(false)}
-                    style={{ position: "absolute", top: 10, right: 10 }}
-                  >
-                    <Text style={{ fontSize: 28, color: "#222" }}>×</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </Modal>
-          </>
-        )}
-      </View>
+          </View>
+        ))}
     </View>
   );
 };
@@ -564,7 +786,7 @@ const styles = StyleSheet.create({
   slideRowCentered: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: 'center',
+    justifyContent: "center",
     marginTop: 10,
     marginBottom: 2,
   },
@@ -641,9 +863,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   tripHeaderRowNew: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 16,
     paddingHorizontal: 4,
   },
@@ -666,7 +888,7 @@ const styles = StyleSheet.create({
   },
   hubTextBig: {
     fontSize: 16,
-    color: '#222',
+    color: "#222",
   },
   batteryRow: {
     flexDirection: "row",
@@ -680,12 +902,12 @@ const styles = StyleSheet.create({
   },
   batteryTextBig: {
     fontSize: 16,
-    color: '#222',
+    color: "#222",
   },
   tripInfo: {
     fontSize: 14,
     color: "#222",
-    marginBottom: 8, 
+    marginBottom: 8,
   },
   tripInfoLabel: {
     fontWeight: "600",
@@ -743,6 +965,84 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#00994C",
+  },
+  reservedContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff3cd",
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    height: 44,
+    borderWidth: 1,
+    borderColor: "#ffeaa7",
+  },
+  reservedText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#856404",
+    textAlign: "center",
+  },
+  scrollContainer: {
+    flex: 1,
+    width: "100%",
+    marginTop: 8,
+  },
+  scrollContent: {
+    paddingBottom: 65,
+    width: "100%",
+  },
+  stopsSection: {
+    marginTop: 12,
+    marginLeft: 10,
+    marginRight: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#e0e0e0",
+  },
+  stopsTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#222",
+    marginBottom: 8,
+  },
+  stopItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 6,
+  },
+  stopNumber: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#666",
+    marginRight: 8,
+    marginTop: 2,
+    minWidth: 20,
+  },
+  stopAddress: {
+    fontSize: 12,
+    color: "#666",
+    flex: 1,
+    lineHeight: 16,
+  },
+  checkOutButtonContainer: {
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  checkOutButton: {
+    backgroundColor: "#B71C1C",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    minWidth: 80,
+    alignItems: "center",
+  },
+  checkOutButtonText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "600",
   },
 });
 

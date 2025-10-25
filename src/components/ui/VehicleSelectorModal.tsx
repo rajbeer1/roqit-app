@@ -79,7 +79,7 @@ const VehicleSelectorModal: React.FC<VehicleSelectorModalProps> = (
       <View style={styles.modalBackdrop}>
         <View style={styles.modalContainer}>
           <View style={styles.filterTabs}>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={[styles.tab, filter === "passenger" && styles.tabActive]}
               onPress={() => setFilter("passenger")}
             >
@@ -104,7 +104,7 @@ const VehicleSelectorModal: React.FC<VehicleSelectorModalProps> = (
               >
                 Cargo
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
           <View style={styles.searchBar}>
             <TextInput

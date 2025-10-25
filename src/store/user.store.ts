@@ -13,6 +13,7 @@ interface UserStoreState {
   operationLat: number | null;
   operationLng: number | null;
   inProgressTrip: any | null;
+  reservedVehicle: any | null;
   organisationId: string | null;
   loading: boolean;
   geofenceRadius: number | null;
@@ -33,6 +34,7 @@ export const useUserStore = create<UserStoreState>()(
       operationLat: null,
       operationLng: null,
       inProgressTrip: null,
+      reservedVehicle: null,
       organisationId: null,
       geofenceRadius: null,
       approvalStatus: null,
@@ -66,11 +68,12 @@ export const useUserStore = create<UserStoreState>()(
         const operationLng = user?.operation?.longitude ?? null;
         const geofenceRadius = user?.operation?.geofenceRadius ?? null;
         const organisationId = user?.organisationId ?? null;
-        const inProgressTrip = Array.isArray(user?.trips)
-          ? user.trips.find((trip: any) => trip.status !== "Complete")
-          : null;
+        const inProgressTrip = user?.inProgressTrip ?? null;
+        const reservedVehicle = user?.vehicle ?? null;
         const approvalStatus = user?.approvalStatus ?? null;
-        const trips = user?.trips?.filter((trip: any) => trip.status === "Complete") ?? null;
+        const trips =
+          user?.trips?.filter((trip: any) => trip.status === "Complete") ??
+          null;
         let totalSeconds = 0;
         let totalDistance = 0;
         const vehicleSet = new Set<string>();
@@ -118,6 +121,7 @@ export const useUserStore = create<UserStoreState>()(
           operationLat,
           operationLng,
           inProgressTrip,
+          reservedVehicle,
           organisationId,
           geofenceRadius,
           approvalStatus,
@@ -136,6 +140,7 @@ export const useUserStore = create<UserStoreState>()(
           operationLat: null,
           operationLng: null,
           inProgressTrip: null,
+          reservedVehicle: null,
           organisationId: null,
           geofenceRadius: null,
           approvalStatus: null,
