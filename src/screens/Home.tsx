@@ -22,6 +22,7 @@ import { useUserStore } from "../store/user.store";
 import RNSwipeButton from "rn-swipe-button";
 import VehicleSelectorModal from "../components/ui/VehicleSelectorModal";
 import * as Location from "expo-location";
+import * as Linking from "expo-linking";
 import type { RootStackParamList } from "../navigation/AppNavigator";
 
 const SWIPE_WIDTH = Math.round(Dimensions.get("window").width * 0.7);
@@ -149,6 +150,57 @@ const Home = () => {
     } finally {
       setDriverCheckOutLoading(false);
     }
+  };
+
+  const openAppleMaps = (startLat: string, startLng: string, endLat: string, endLng: string, waypoints: string[]) => {
+    let url = `http://maps.apple.com/?saddr=${startLat},${startLng}&daddr=${endLat},${endLng}`;
+    
+    if (waypoints.length > 0) {
+      const waypointStr = waypoints.join('+to:');
+      url = `http://maps.apple.com/?saddr=${startLat},${startLng}&daddr=${waypointStr}+to:${endLat},${endLng}`;
+    }
+    
+    return Linking.openURL(url);
+  };
+
+  const openGoogleMaps = () => {
+    const trip = inProgressTrip || user?.trip;
+    if (!trip) return;
+
+    const startLat = trip.startAddress?.latitude;
+    const startLng = trip.startAddress?.longitude;
+    const stops = trip.stops;
+
+    if (!startLat || !startLng || !stops || !Array.isArray(stops) || stops.length === 0) {
+      console.error("Missing start coordinates or stops");
+      return;
+    }
+    const lastStop = stops[stops.length - 1];
+    const endLat = lastStop?.latitude;
+    const endLng = lastStop?.longitude;
+
+    if (!endLat || !endLng) {
+      console.error("Missing end coordinates from last stop");
+      return;
+    }
+    const waypoints = stops.length > 1 
+      ? stops
+          .slice(0, -1) 
+          .filter((stop: any) => stop.latitude && stop.longitude)
+          .map((stop: any) => `${stop.latitude},${stop.longitude}`)
+      : [];
+    let googleUrl = `https://www.google.com/maps/dir/?api=1&origin=${startLat},${startLng}&destination=${endLat},${endLng}`;
+    if (waypoints.length > 0) {
+      googleUrl += `&waypoints=${waypoints.join('|')}`;
+    }
+    googleUrl += '&travelmode=driving';
+
+    Linking.openURL(googleUrl).catch((err: any) => {
+      console.error('Error opening Google Maps, trying Apple Maps:', err);
+      openAppleMaps(startLat, startLng, endLat, endLng, waypoints).catch((appleErr: any) => {
+        console.error('Error opening Apple Maps:', appleErr);
+      });
+    });
   };
   const handleVehicleSelect = (vehicle: any) => {
     navigation.dispatch(
@@ -519,6 +571,21 @@ const Home = () => {
                             <Text style={styles.stopAddress}>{stop.address}</Text>
                           </View>
                         ))}
+                      </View>
+                    )}
+                    {(inProgressTrip || user?.trip)?.stops && 
+                     Array.isArray((inProgressTrip || user?.trip).stops) && 
+                     (inProgressTrip || user?.trip).stops.length > 0 && 
+                     (inProgressTrip || user?.trip)?.startAddress?.latitude && (
+                      <View style={styles.navigationSection}>
+                        <TouchableOpacity
+                          style={styles.navigationButton}
+                          onPress={openGoogleMaps}
+                        >
+                          <Text style={styles.navigationButtonText}>
+                            Open in Maps
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                     )}
                   </View>
@@ -990,7 +1057,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   scrollContent: {
-    paddingBottom: 65,
+    paddingBottom: 80,
     width: "100%",
   },
   stopsSection: {
@@ -1042,6 +1109,26 @@ const styles = StyleSheet.create({
   checkOutButtonText: {
     color: "#fff",
     fontSize: 10,
+    fontWeight: "600",
+  },
+  navigationSection: {
+    marginTop: 12,
+    marginLeft: 10,
+    marginRight: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#e0e0e0",
+  },
+  navigationButton: {
+    backgroundColor: "#0070F0",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: "center",
+  },
+  navigationButtonText: {
+    color: "#fff",
+    fontSize: 14,
     fontWeight: "600",
   },
 });
