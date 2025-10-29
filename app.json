@@ -14,7 +14,9 @@
     },
     "ios": {
       "infoPlist": {
-        "NSCameraUsageDescription": "This app needs access to the camera to take photos.",
+        "NSCameraUsageDescription": "Roqit needs access to the camera to take photos.",
+        "NSLocationWhenInUseUsageDescription": "Allow Roqit to use your location.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow Roqit to use your location.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.rajbeer11.roqitapp",
