@@ -24,6 +24,7 @@ import VehicleSelectorModal from "../components/ui/VehicleSelectorModal";
 import * as Location from "expo-location";
 import * as Linking from "expo-linking";
 import type { RootStackParamList } from "../navigation/AppNavigator";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
 const SWIPE_WIDTH = Math.round(Dimensions.get("window").width * 0.7);
 
@@ -47,17 +48,32 @@ const Home = () => {
     return `${h}:${m}:${s}`;
   };
 
+  const formatHoursMinutes = (sec: number) => {
+    const h = String(Math.floor(sec / 3600)).padStart(2, "0");
+    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
+    return `${h}:${m}`;
+  };
+
   let timerDisplay = "00:00:00";
-  if (inProgressTrip && inProgressTrip.tripStartDate) {
-    const startDateStr = inProgressTrip.tripStartDate;
-    const startDate = startDateStr ? new Date(startDateStr) : null;
-    if (startDate) {
-      const diffSec = Math.floor(
-        (currentTime.getTime() - startDate.getTime()) / 1000
-      );
-      timerDisplay = formatTime(diffSec > 0 ? diffSec : 0);
-    }
+  let loginSeconds = 0;
+  if (user?.checkinStatus === "checked_in" && user?.checkinTime) {
+    const diffSec = Math.floor(
+      (currentTime.getTime() - new Date(user.checkinTime).getTime()) / 1000
+    );
+    loginSeconds = diffSec > 0 ? diffSec : 0;
+    timerDisplay = formatTime(loginSeconds);
   }
+  let driveSeconds = 0;
+  const tripStart = (inProgressTrip)?.tripStartDate || (inProgressTrip)?.tripStartTime;
+  if (tripStart) {
+    const diffSec = Math.floor(
+      (currentTime.getTime() - new Date(tripStart).getTime()) / 1000
+    );
+    driveSeconds = diffSec > 0 ? diffSec : 0;
+  }
+  const idleSeconds = Math.max(0, loginSeconds - driveSeconds);
+  const driveDisplay = formatHoursMinutes(driveSeconds);
+  const idleDisplay = formatHoursMinutes(idleSeconds);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -152,14 +168,27 @@ const Home = () => {
     }
   };
 
-  const openAppleMaps = (startLat: string, startLng: string, endLat: string, endLng: string, waypoints: string[]) => {
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
+  };
+
+  const openAppleMaps = (
+    startLat: string,
+    startLng: string,
+    endLat: string,
+    endLng: string,
+    waypoints: string[]
+  ) => {
     let url = `http://maps.apple.com/?saddr=${startLat},${startLng}&daddr=${endLat},${endLng}`;
-    
+
     if (waypoints.length > 0) {
-      const waypointStr = waypoints.join('+to:');
+      const waypointStr = waypoints.join("+to:");
       url = `http://maps.apple.com/?saddr=${startLat},${startLng}&daddr=${waypointStr}+to:${endLat},${endLng}`;
     }
-    
+
     return Linking.openURL(url);
   };
 
@@ -171,7 +200,13 @@ const Home = () => {
     const startLng = trip.startAddress?.longitude;
     const stops = trip.stops;
 
-    if (!startLat || !startLng || !stops || !Array.isArray(stops) || stops.length === 0) {
+    if (
+      !startLat ||
+      !startLng ||
+      !stops ||
+      !Array.isArray(stops) ||
+      stops.length === 0
+    ) {
       console.error("Missing start coordinates or stops");
       return;
     }
@@ -183,23 +218,26 @@ const Home = () => {
       console.error("Missing end coordinates from last stop");
       return;
     }
-    const waypoints = stops.length > 1 
-      ? stops
-          .slice(0, -1) 
-          .filter((stop: any) => stop.latitude && stop.longitude)
-          .map((stop: any) => `${stop.latitude},${stop.longitude}`)
-      : [];
+    const waypoints =
+      stops.length > 1
+        ? stops
+            .slice(0, -1)
+            .filter((stop: any) => stop.latitude && stop.longitude)
+            .map((stop: any) => `${stop.latitude},${stop.longitude}`)
+        : [];
     let googleUrl = `https://www.google.com/maps/dir/?api=1&origin=${startLat},${startLng}&destination=${endLat},${endLng}`;
     if (waypoints.length > 0) {
-      googleUrl += `&waypoints=${waypoints.join('|')}`;
+      googleUrl += `&waypoints=${waypoints.join("|")}`;
     }
-    googleUrl += '&travelmode=driving';
+    googleUrl += "&travelmode=driving";
 
     Linking.openURL(googleUrl).catch((err: any) => {
-      console.error('Error opening Google Maps, trying Apple Maps:', err);
-      openAppleMaps(startLat, startLng, endLat, endLng, waypoints).catch((appleErr: any) => {
-        console.error('Error opening Apple Maps:', appleErr);
-      });
+      console.error("Error opening Google Maps, trying Apple Maps:", err);
+      openAppleMaps(startLat, startLng, endLat, endLng, waypoints).catch(
+        (appleErr: any) => {
+          console.error("Error opening Apple Maps:", appleErr);
+        }
+      );
     });
   };
   const handleVehicleSelect = (vehicle: any) => {
@@ -305,448 +343,301 @@ const Home = () => {
       return false;
     }
   };
+  const formatDate = () => {
+    const today = new Date();
+    return today.toLocaleDateString("en-US", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
   return (
     <View style={styles.container}>
       <Header />
-      {user?.checkinStatus === "checked_in" && (
-        <View style={styles.content}>
-          {loading ? (
-            <ActivityIndicator size="large" color="#1565c0" />
-          ) : (
-            <>
-              <Text style={styles.greeting}>
-                Good Morning! {user?.firstName}
-              </Text>
-              <View
-                style={[
-                  styles.statusCard,
-                  inProgressTrip ? styles.activeCard : styles.inactiveCard,
-                ]}
-              >
-                <View style={styles.statusRow}>
-                  <Text style={styles.statusLabel}>Status</Text>
-                  <View style={styles.statusDotRow}>
-                    <View
-                      style={[
-                        styles.statusDot,
-                        {
-                          backgroundColor: inProgressTrip
-                            ? "#00994C"
-                            : "#B71C1C",
-                        },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.statusText,
-                        { color: inProgressTrip ? "#00994C" : "#B71C1C" },
-                      ]}
-                    >
-                      {(() => {
-                        if (
-                          user?.status &&
-                          user?.checkinStatus !== "checked_out"
-                        ) {
-                          return user.status.replace(/_/g, " ");
-                        }
-                        if (user?.checkinStatus === "checked_out") {
-                          return "Checked Out";
-                        }
-                        return inProgressTrip ? "Active" : "Offline";
-                      })()}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.timer}>
-                  {inProgressTrip ? timerDisplay : "00:00:00"}
-                </Text>
-                <View style={styles.checkRow}>
-                  <Text style={styles.checkText}>
-                    {inProgressTrip
-                      ? new Date(
-                          inProgressTrip.tripStartDate
-                        ).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "--:--"}
-                  </Text>
-                  <Text style={styles.checkLabel}>Check in</Text>
-                  <View style={{ flex: 1 }} />
-                  <Text style={styles.checkText}>{"--:--"}</Text>
-                  <Text style={styles.checkLabel}>Check out</Text>
-                </View>
-                <Text style={styles.dateText}>{`${
-                  inProgressTrip
-                    ? new Date(inProgressTrip.tripStartDate).getDate()
-                    : "--"
-                }-${
-                  inProgressTrip
-                    ? new Date(inProgressTrip.tripStartDate).toLocaleString(
-                        "default",
-                        { month: "short" }
-                      )
-                    : "--"
-                }-${
-                  inProgressTrip
-                    ? new Date(inProgressTrip.tripStartDate).getFullYear()
-                    : "--"
-                }`}</Text>
-                {user?.checkinStatus === "checked_in" &&
-                  user?.status === "active" && (
-                    <View style={styles.checkOutButtonContainer}>
-                      {driverCheckOutLoading ? (
-                        <View style={styles.loadingContainer}>
-                          <ActivityIndicator size="small" color="#B71C1C" />
-                          <Text style={styles.loadingText}>
-                            Checking location...
-                          </Text>
-                        </View>
-                      ) : (
-                        <TouchableOpacity
-                          style={styles.checkOutButton}
-                          onPress={handleDriverCheckOut}
-                        >
-                          <Text style={styles.checkOutButtonText}>
-                            Check Out
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  )}
-                <View style={styles.slideRowCentered}>
-                  {inProgressTrip ? (
-                    <View style={{ width: SWIPE_WIDTH, alignSelf: "center" }}>
-                      {checkOutLoading ? (
-                        <View style={styles.loadingContainer}>
-                          <ActivityIndicator size="small" color="#00994C" />
-                          <Text style={styles.loadingText}>
-                            Checking location...
-                          </Text>
-                        </View>
-                      ) : (
-                        <RNSwipeButton
-                          containerStyles={{
-                            width: SWIPE_WIDTH,
-                            alignSelf: "center",
-                            backgroundColor: "transparent",
-                          }}
-                          height={44}
-                          railBackgroundColor="#e8f8f2"
-                          thumbIconBackgroundColor="#111"
-                          title="Slide to stop trip"
-                          titleStyles={{
-                            color: "#00994C",
-                            fontWeight: "600",
-                            fontSize: 16,
-                          }}
-                          onSwipeSuccess={handleCheckOut}
-                          railFillBackgroundColor="#00994C"
-                          railFillBorderColor="#00994C"
-                          shouldResetAfterSuccess={true}
-                        />
-                      )}
-                    </View>
-                  ) : (
-                    <View style={{ width: SWIPE_WIDTH, alignSelf: "center" }}>
-                      {user?.status === "reserved" ? (
-                        <View style={styles.reservedContainer}>
-                          <Text style={styles.reservedText}>
-                            Driver is reserved
-                          </Text>
-                        </View>
-                      ) : checkInLoading ? (
-                        <View style={styles.loadingContainer}>
-                          <ActivityIndicator size="small" color="#00994C" />
-                          <Text style={styles.loadingText}>
-                            Checking location...
-                          </Text>
-                        </View>
-                      ) : (
-                        <RNSwipeButton
-                          containerStyles={{
-                            width: SWIPE_WIDTH,
-                            alignSelf: "center",
-                            backgroundColor: "transparent",
-                          }}
-                          height={44}
-                          railBackgroundColor="#fff"
-                          thumbIconBackgroundColor="#111"
-                          title="Slide to start trip"
-                          titleStyles={{
-                            color: "#888",
-                            fontWeight: "600",
-                            fontSize: 16,
-                          }}
-                          onSwipeSuccess={handleCheckIn}
-                          railFillBackgroundColor="#00994C"
-                          railFillBorderColor="#00994C"
-                          shouldResetAfterSuccess={true}
-                        />
-                      )}
-                    </View>
-                  )}
-                </View>
-              </View>
-              <ScrollView
-                style={styles.scrollContainer}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}
-              >
-                {(inProgressTrip || user?.trip) && (
-                  <View style={styles.tripCard}>
-                    <View style={styles.tripHeaderRowNew}>
-                      <Text style={styles.hubTextBig}>
-                        <Text style={{ fontWeight: "bold" }}> HUB: </Text>{" "}
-                        {user?.operation?.name
-                          ? user.operation.name.length > 12
-                            ? user.operation.name.slice(0, 12) + "…"
-                            : user.operation.name
-                          : ""}
-                      </Text>
-                      <Text style={styles.batteryTextBig}>
-                        <Text style={{ fontWeight: "bold" }}> Battery: </Text>{" "}
-                        {(inProgressTrip || user?.trip)?.vehicleMetaTripStart
-                          ?.location?.soc ||
-                          (inProgressTrip || user?.trip)?.vehicleMetaTripStart
-                            ?.location?.batteryPercentage ||
-                          "N/A"}
-                        %
-                      </Text>
-                    </View>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        marginBottom: 8,
-                        marginLeft: 10,
-                      }}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.tripInfo}>
-                          <Text style={styles.tripInfoLabel}>Assigned to:</Text>{" "}
-                          {user?.firstName} {user?.lastName}
-                        </Text>
-                        <Text style={styles.tripInfo}>
-                          <Text style={styles.tripInfoLabel}>Vehicle:</Text>{" "}
-                          {(inProgressTrip || user?.trip)?.vehicle?.usageType ||
-                            "N/A"}
-                        </Text>
-                        <Text style={styles.tripInfo}>
-                          <Text style={styles.tripInfoLabel}>
-                            License Plate:
-                          </Text>{" "}
-                          {(inProgressTrip || user?.trip)?.vehicle
-                            ?.licensePlate || "N/A"}
-                        </Text>
-                        <Text style={styles.tripInfo}>
-                          <Text style={styles.tripInfoLabel}>
-                            Return Vehicle:
-                          </Text>{" "}
-                          {(inProgressTrip || user?.trip)?.tripStartDate
-                            ? (() => {
-                                const start = new Date(
-                                  (inProgressTrip || user?.trip).tripStartDate
-                                );
-                                const returnTime = new Date(
-                                  start.getTime() + 8 * 60 * 60 * 1000
-                                );
-                                return returnTime.toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                });
-                              })()
-                            : "--:--"}
-                        </Text>
-                      </View>
-                    </View>
-                    {(inProgressTrip || user?.trip)?.stops && 
-                     Array.isArray((inProgressTrip || user?.trip).stops) && 
-                     (inProgressTrip || user?.trip).stops.length > 0 && (
-                      <View style={styles.stopsSection}>
-                        <Text style={styles.stopsTitle}>Stops:</Text>
-                        {(inProgressTrip || user?.trip).stops.map((stop: any, index: number) => (
-                          <View key={index} style={styles.stopItem}>
-                            <Text style={styles.stopNumber}>{index + 1}.</Text>
-                            <Text style={styles.stopAddress}>{stop.address}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                    {(inProgressTrip || user?.trip)?.stops && 
-                     Array.isArray((inProgressTrip || user?.trip).stops) && 
-                     (inProgressTrip || user?.trip).stops.length > 0 && 
-                     (inProgressTrip || user?.trip)?.startAddress?.latitude && (
-                      <View style={styles.navigationSection}>
-                        <TouchableOpacity
-                          style={styles.navigationButton}
-                          onPress={openGoogleMaps}
-                        >
-                          <Text style={styles.navigationButtonText}>
-                            Open in Maps
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                )}
-                {reservedVehicle && (
-                  <View style={styles.tripCard}>
-                    <View style={styles.tripHeaderRowNew}>
-                      <Text style={styles.hubTextBig}>
-                        <Text style={{ fontWeight: "bold" }}>
-                          {" "}
-                          Reserved Vehicle
-                        </Text>
-                      </Text>
-                      <Text style={styles.batteryTextBig}>
-                        <Text style={{ fontWeight: "bold" }}> Status: </Text>{" "}
-                        {inProgressTrip ? "On Trip" : "Reserved"}
-                      </Text>
-                    </View>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        marginBottom: 8,
-                        marginLeft: 10,
-                      }}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.tripInfo}>
-                          <Text style={styles.tripInfoLabel}>
-                            License Plate:
-                          </Text>{" "}
-                          {reservedVehicle?.licensePlate || "N/A"}
-                        </Text>
-                        <Text style={styles.tripInfo}>
-                          <Text style={styles.tripInfoLabel}>VIN:</Text>{" "}
-                          {reservedVehicle?.vin || "N/A"}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-              </ScrollView>
-              <VehicleSelectorModal
-                visible={modalVisible}
-                onClose={() => setModalVisible(false)}
-                onVehicleSelected={handleVehicleSelect}
-              />
-              <Modal visible={geoErrorModal} transparent animationType="fade">
-                <View
-                  style={{
-                    flex: 1,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    backgroundColor: "rgba(0,0,0,0.2)",
-                  }}
-                >
-                  <View
-                    style={{
-                      backgroundColor: "#fff",
-                      borderRadius: 20,
-                      padding: 28,
-                      alignItems: "center",
-                      width: 300,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 70,
-                        color: "#F44336",
-                        marginBottom: 10,
-                      }}
-                    >
-                      ⚠️
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 17,
-                        color: "#888792",
-                        textAlign: "center",
-                        marginBottom: 10,
-                      }}
-                    >
-                      {geoErrorMsg || (
-                        <>
-                          You are not in the operation HUB to{" "}
-                          <Text style={{ color: "#1565c0" }}>Clock</Text>
-                        </>
-                      )}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => setGeoErrorModal(false)}
-                      style={{ position: "absolute", top: 10, right: 10 }}
-                    >
-                      <Text style={{ fontSize: 28, color: "#222" }}>×</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </Modal>
-            </>
-          )}
-        </View>
-      )}
-      {user?.checkinStatus === "checked_out" &&
-        (loading ? (
+      <View style={styles.content}>
+        {loading ? (
           <ActivityIndicator size="large" color="#1565c0" />
         ) : (
-          <View style={styles.content}>
-            <Text style={styles.greeting}>Good Morning! {user?.firstName}</Text>
-            <View style={[styles.statusCard, styles.inactiveCard]}>
-              <View style={styles.statusRow}>
-                <Text style={styles.statusLabel}>Status</Text>
-                <View style={styles.statusDotRow}>
-                  <View
-                    style={[
-                      styles.statusDot,
-                      {
-                        backgroundColor: "#B71C1C",
-                      },
-                    ]}
-                  />
-                  <Text style={[styles.statusText, { color: "#B71C1C" }]}>
-                    Checked Out
-                  </Text>
-                </View>
+          <>
+            <Text style={styles.greeting}>
+              {getGreeting()}! {user?.firstName}!
+            </Text>
+
+            {/* Date and Activity Header */}
+            <View style={styles.dateHeader}>
+              <Text style={styles.dateText}>{formatDate()}</Text>
+            </View>
+            <Text style={styles.todayActivityText}>Today's Activity</Text>
+
+            {/* Login Time Card */}
+            <View style={styles.timerCard}>
+              <Text style={styles.timerDisplay}>
+                {user?.checkinStatus === "checked_in"
+                  ? timerDisplay
+                  : "00:00:00"}
+              </Text>
+              <View style={styles.loginTimeRow}>
+                <Icon name="clock-outline" size={20} color="#1565c0" />
+                <Text style={styles.loginTimeText}>Login Time</Text>
               </View>
+            </View>
+
+            {inProgressTrip ? (
               <View style={styles.slideRowCentered}>
-                <View style={{ width: SWIPE_WIDTH, alignSelf: "center" }}>
-                  {driverCheckInLoading ? (
-                    <View style={styles.loadingContainer}>
-                      <ActivityIndicator size="small" color="#00994C" />
-                      <Text style={styles.loadingText}>
-                        Checking location...
-                      </Text>
-                    </View>
-                  ) : (
-                    <RNSwipeButton
-                      containerStyles={{
-                        width: SWIPE_WIDTH,
-                        alignSelf: "center",
-                        backgroundColor: "transparent",
-                      }}
-                      height={44}
-                      railBackgroundColor="#fff"
-                      thumbIconBackgroundColor="#111"
-                      title="Slide to check in"
-                      titleStyles={{
-                        color: "#888",
-                        fontWeight: "600",
-                        fontSize: 16,
-                      }}
-                      onSwipeSuccess={handleDriverCheckIn}
-                      railFillBackgroundColor="#00994C"
-                      railFillBorderColor="#00994C"
-                      shouldResetAfterSuccess={true}
-                    />
+                {checkOutLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color="#B71C1C" />
+                    <Text style={styles.loadingText}>Checking location...</Text>
+                  </View>
+                ) : (
+                  <RNSwipeButton
+                    containerStyles={{
+                      width: SWIPE_WIDTH,
+                      alignSelf: "center",
+                      backgroundColor: "transparent",
+                    }}
+                    height={44}
+                    railBackgroundColor="#fff"
+                    thumbIconBackgroundColor="#B71C1C"
+                    title="Swipe to End trip"
+                    titleStyles={{
+                      color: "#888",
+                      fontWeight: "600",
+                      fontSize: 16,
+                    }}
+                    onSwipeSuccess={handleCheckOut}
+                    railFillBackgroundColor="#B71C1C"
+                    railFillBorderColor="#B71C1C"
+                    shouldResetAfterSuccess={true}
+                  />
+                )}
+              </View>
+            ) : user?.status === "active" ? (
+              <View style={styles.slideRowCentered}>
+                {driverCheckOutLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color="#B71C1C" />
+                    <Text style={styles.loadingText}>Checking location...</Text>
+                  </View>
+                ) : (
+                  <RNSwipeButton
+                    containerStyles={{
+                      width: SWIPE_WIDTH,
+                      alignSelf: "center",
+                      backgroundColor: "transparent",
+                    }}
+                    height={44}
+                    railBackgroundColor="#fff"
+                    thumbIconBackgroundColor="#B71C1C"
+                    title="Swipe to Check out"
+                    titleStyles={{
+                      color: "#888",
+                      fontWeight: "600",
+                      fontSize: 16,
+                    }}
+                    onSwipeSuccess={handleDriverCheckOut}
+                    railFillBackgroundColor="#B71C1C"
+                    railFillBorderColor="#B71C1C"
+                    shouldResetAfterSuccess={true}
+                  />
+                )}
+              </View>
+            ) : (
+              <></>
+            )}
+            <ScrollView
+              style={styles.scrollContainer}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
+            >
+              <View style={styles.vehicleCard}>
+                <View style={styles.vehicleInfoRow}>
+                  <View style={styles.vehicleImagePlaceholder}>
+                    <Icon name="car" size={32} color="#999" />
+                  </View>
+                  <View style={styles.vehicleDetails}>
+                    <Text style={styles.vehicleNo}>
+                      {reservedVehicle?.licensePlate || "Vehicle No."}
+                    </Text>
+                    <Text style={styles.vehicleNo}>
+                      {`${user?.currentLocation?.soc || "SOC."}%` || "SOC."}
+                    </Text>
+                  </View>
+                  {user?.status === "active" && (
+                    <TouchableOpacity
+                      style={styles.assignButton}
+                      onPress={handleCheckIn}
+                    >
+                      <Text style={styles.assignButtonText}>Assign</Text>
+                      <Icon name="chevron-right" size={18} color="#fff" />
+                    </TouchableOpacity>
                   )}
                 </View>
               </View>
-            </View>
-          </View>
-        ))}
+              <View style={styles.activityCardsRow}>
+                <View style={styles.activityCard}>
+                  <Text style={styles.activityValue}>{driveDisplay}</Text>
+                  <View style={styles.activityIconRow}>
+                    <Icon name="steering" size={20} color="#666" />
+                    <Text style={styles.activityLabel}>Drive Time</Text>
+                  </View>
+                </View>
+                <View style={styles.activityCard}>
+                  <Text style={styles.activityValue}>{user?.distanceCovered|| '--'} Kms</Text>
+                  <View style={styles.activityIconRow}>
+                    <Icon name="map-marker-distance" size={20} color="#666" />
+                    <Text style={styles.activityLabel}>Distance</Text>
+                  </View>
+                </View>
+                <View style={styles.activityCard}>
+                  <Text style={styles.activityValue}>{idleDisplay}</Text>
+                  <View style={styles.activityIconRow}>
+                    <Icon name="clock-outline" size={20} color="#666" />
+                    <Text style={styles.activityLabel}>Idle Time</Text>
+                  </View>
+                </View>
+              </View>
+              <View>
+                {(inProgressTrip || user?.trip)?.stops &&
+                  Array.isArray((inProgressTrip || user?.trip).stops) &&
+                  (inProgressTrip || user?.trip).stops.length > 0 && (
+                    <View style={styles.tripCard}>
+                      <View style={styles.stopsSection}>
+                        <Text style={styles.stopsTitle}>Stops:</Text>
+                        {(inProgressTrip || user?.trip).stops.map(
+                          (stop: any, index: number) => (
+                            <View key={index} style={styles.stopItem}>
+                              <Text style={styles.stopNumber}>
+                                {index + 1}.
+                              </Text>
+                              <Text style={styles.stopAddress}>
+                                {stop.address}
+                              </Text>
+                            </View>
+                          )
+                        )}
+                      </View>
+                    </View>
+                  )}
+                {(inProgressTrip || user?.trip)?.stops &&
+                  Array.isArray((inProgressTrip || user?.trip).stops) &&
+                  (inProgressTrip || user?.trip).stops.length > 0 &&
+                  (inProgressTrip || user?.trip)?.startAddress?.latitude && (
+                    <View style={styles.navigationSection}>
+                      <TouchableOpacity
+                        style={styles.navigationButton}
+                        onPress={openGoogleMaps}
+                      >
+                        <Text style={styles.navigationButtonText}>
+                          Open in Maps
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+              </View>
+            </ScrollView>
+            <VehicleSelectorModal
+              visible={modalVisible}
+              onClose={() => setModalVisible(false)}
+              onVehicleSelected={handleVehicleSelect}
+            />
+            <Modal visible={geoErrorModal} transparent animationType="fade">
+              <View
+                style={{
+                  flex: 1,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: "rgba(0,0,0,0.2)",
+                }}
+              >
+                <View
+                  style={{
+                    backgroundColor: "#fff",
+                    borderRadius: 20,
+                    padding: 28,
+                    alignItems: "center",
+                    width: 300,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 70,
+                      color: "#F44336",
+                      marginBottom: 10,
+                    }}
+                  >
+                    ⚠️
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 17,
+                      color: "#888792",
+                      textAlign: "center",
+                      marginBottom: 10,
+                    }}
+                  >
+                    {geoErrorMsg || (
+                      <>
+                        You are not in the operation HUB to{" "}
+                        <Text style={{ color: "#1565c0" }}>Clock</Text>
+                      </>
+                    )}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setGeoErrorModal(false)}
+                    style={{ position: "absolute", top: 10, right: 10 }}
+                  >
+                    <Text style={{ fontSize: 28, color: "#222" }}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+            <Modal
+              visible={user?.checkinStatus === "checked_out"}
+              transparent
+              animationType="fade"
+            >
+              <View style={styles.overlayBackdrop}>
+                <View style={styles.overlayCard}>
+                  <Icon name="lock-outline" size={40} color="#fff" />
+                  <Text style={styles.overlayTitle}>Check-in</Text>
+                  <Text style={styles.overlaySubtitle}>to book a vehicle</Text>
+                  <View style={styles.slideRowCentered}>
+                    {driverCheckInLoading ? (
+                      <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="small" color="#fff" />
+                        <Text style={styles.loadingText}>Checking location...</Text>
+                      </View>
+                    ) : (
+                      <RNSwipeButton
+                        containerStyles={{
+                          width: SWIPE_WIDTH,
+                          alignSelf: "center",
+                          backgroundColor: "transparent",
+                        }}
+                        height={44}
+                        railBackgroundColor="#fff"
+                        thumbIconBackgroundColor="#1565c0"
+                        title="Swipe to Check-in"
+                        titleStyles={{
+                          color: "#888",
+                          fontWeight: "600",
+                          fontSize: 16,
+                        }}
+                        onSwipeSuccess={handleDriverCheckIn}
+                        railFillBackgroundColor="#1565c0"
+                        railFillBorderColor="#1565c0"
+                        shouldResetAfterSuccess={true}
+                      />
+                    )}
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          </>
+        )}
+      </View>
     </View>
   );
 };
@@ -759,16 +650,54 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     alignItems: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: 20,
     paddingTop: 8,
   },
   greeting: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "300",
     marginTop: 8,
-    marginBottom: 12,
+    marginBottom: 16,
     color: "#222",
+    textAlign: "left",
+    alignSelf: "flex-start",
+    width: "100%",
+  },
+  dateHeader: {
+    width: "100%",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  todayActivityText: {
+    fontSize: 14,
+    color: "#666",
     textAlign: "center",
+    marginBottom: 12,
+  },
+  timerCard: {
+    width: "70%",
+    backgroundColor: "#E3F2FD",
+    borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#BBDEFB",
+  },
+  timerDisplay: {
+    fontSize: 36,
+    fontWeight: "bold",
+    color: "#1565c0",
+    marginBottom: 8,
+  },
+  loginTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  loginTimeText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: "#666",
   },
   statusCard: {
     width: "100%",
@@ -839,10 +768,10 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   dateText: {
-    fontSize: 15,
+    fontSize: 16,
+    fontWeight: "600",
     color: "#222",
     textAlign: "center",
-    marginBottom: 10,
   },
   slideRow: {
     flexDirection: "row",
@@ -1051,22 +980,100 @@ const styles = StyleSheet.create({
     color: "#856404",
     textAlign: "center",
   },
+  vehicleCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  vehicleInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  vehicleImagePlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: "#f5f5f5",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  vehicleDetails: {
+    flex: 1,
+  },
+  vehicleNo: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#222",
+    marginBottom: 4,
+  },
+  vehicleType: {
+    fontSize: 14,
+    color: "#666",
+  },
+  assignButton: {
+    backgroundColor: "#1565c0",
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  assignButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    marginRight: 4,
+  },
+  activityCardsRow: {
+    flexDirection: "row",
+    width: "100%",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  activityCard: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  activityValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#222",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  activityIconRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activityLabel: {
+    fontSize: 12,
+    color: "#666",
+    marginLeft: 6,
+  },
   scrollContainer: {
     flex: 1,
     width: "100%",
     marginTop: 8,
   },
   scrollContent: {
-    paddingBottom: 80,
+    paddingBottom: 90,
     width: "100%",
   },
   stopsSection: {
-    marginTop: 12,
+    marginTop: 10,
     marginLeft: 10,
     marginRight: 10,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
   },
   stopsTitle: {
     fontSize: 14,
@@ -1130,6 +1137,33 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "600",
+  },
+  overlayBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(5, 5, 6, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
+  },
+  overlayCard: {
+    width: "92%",
+    borderRadius: 20,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    alignItems: "center",
+
+  },
+  overlayTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#fff",
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  overlaySubtitle: {
+    fontSize: 16,
+    color: "#fff",
+    marginBottom: 16,
   },
 });
 

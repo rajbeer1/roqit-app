@@ -115,9 +115,16 @@ export const useUserStore = create<UserStoreState>()(
             }
           }
         }
+        const startOdometer =
+          inProgressTrip?.vehicleMetaTripStart?.location?.odometer;
+        const currentOdometer = user?.currentLocation?.odometer;
+        const distanceCovered =
+          typeof startOdometer === "number" && typeof currentOdometer === "number"
+            ? Math.max(0, currentOdometer - startOdometer)
+            : null;
 
         set({
-          user,
+          user: { ...user, distanceCovered },
           operationLat,
           operationLng,
           inProgressTrip,

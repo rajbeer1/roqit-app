@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -85,14 +85,14 @@ export const TripCard = ({
         )}
       </View>
       <View style={{ paddingHorizontal: 10, paddingBottom: 10 }}>
-        <Text style={styles.weekdayText}>
+        {/* <Text style={styles.weekdayText}>
           <Text style={{ color: "#0047BA", fontWeight: "bold", fontSize: 18 }}>
             {getWeekday(trip.tripStartDate)}
           </Text>{" "}
           <Text style={{ color: "#0047BA", fontWeight: "bold", fontSize: 18 }}>
             {tripDate ? String(tripDate.getDate()).padStart(2, "0") : "--"}
           </Text>
-        </Text>
+        </Text> */}
         <View style={styles.checkRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.checkLabel}>Check In</Text>
@@ -108,9 +108,6 @@ export const TripCard = ({
         <View style={styles.driveRow}>
           <Text style={styles.driveTimeText}>
             Drive Time {getDriveTime(trip.tripStartDate, trip.tripEndDate)}Hrs
-          </Text>
-          <Text style={styles.dateText}>
-            Date: {tripDate ? tripDate.toLocaleDateString() : "--"}
           </Text>
         </View>
       </View>
@@ -180,6 +177,11 @@ const ScoreCard = ({
 const Trip = () => {
   const navigation = useNavigation<TripScreenNavigationProp>();
   const { trips, loading, stats, tripsUnder8Hours } = useUserStore();
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const sortedTrips =
     trips && Array.isArray(trips)
       ? [...trips].sort(
@@ -189,6 +191,45 @@ const Trip = () => {
         )
       : [];
 
+  const daysInMonth: Date[] = useMemo(() => {
+    const start = new Date(
+      visibleMonth.getFullYear(),
+      visibleMonth.getMonth(),
+      1
+    );
+    const end = new Date(
+      visibleMonth.getFullYear(),
+      visibleMonth.getMonth() + 1,
+      0
+    );
+    const days: Date[] = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      days.push(new Date(d));
+    }
+    return days;
+  }, [visibleMonth]);
+
+  const monthLabel = useMemo(
+    () =>
+      visibleMonth.toLocaleDateString(undefined, {
+        month: "short",
+        year: "numeric",
+      }),
+    [visibleMonth]
+  );
+
+  const filteredTrips = useMemo(() => {
+    return sortedTrips.filter((t) => {
+      if (!t.tripStartDate) return false;
+      const td = new Date(t.tripStartDate);
+      return (
+        td.getFullYear() === selectedDate.getFullYear() &&
+        td.getMonth() === selectedDate.getMonth() &&
+        td.getDate() === selectedDate.getDate()
+      );
+    });
+  }, [sortedTrips, selectedDate]);
+
   return (
     <View style={styles.container}>
       <Header />
@@ -196,23 +237,102 @@ const Trip = () => {
         contentContainerStyle={{ paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
       >
-        <TripStats stats={stats} />
-        <ScoreCard
-          tripsUnder8Hours={tripsUnder8Hours}
-          totalTrips={Number(trips?.length)}
-        />
+        {/* Date strip */}
+        <View style={{ paddingHorizontal: 14, paddingTop: 12 }}>
+          <View style={styles.stripHeaderRow}>
+            <Text style={styles.stripTitle}>At a glimpse of your trips</Text>
+            <View style={styles.monthSelector}>
+              <TouchableOpacity
+                onPress={() =>
+                  setVisibleMonth(
+                    new Date(
+                      visibleMonth.getFullYear(),
+                      visibleMonth.getMonth() - 1,
+                      1
+                    )
+                  )
+                }
+                style={styles.monthArrowBtn}
+              >
+                <MaterialCommunityIcons
+                  name="chevron-left"
+                  size={20}
+                  color="#222"
+                />
+              </TouchableOpacity>
+              <Text style={styles.monthLabel}>{monthLabel}</Text>
+              <TouchableOpacity
+                onPress={() =>
+                  setVisibleMonth(
+                    new Date(
+                      visibleMonth.getFullYear(),
+                      visibleMonth.getMonth() + 1,
+                      1
+                    )
+                  )
+                }
+                style={styles.monthArrowBtn}
+              >
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={20}
+                  color="#222"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingVertical: 8 }}
+          >
+            {daysInMonth.map((d) => {
+              const isSelected =
+                d.getFullYear() === selectedDate.getFullYear() &&
+                d.getMonth() === selectedDate.getMonth() &&
+                d.getDate() === selectedDate.getDate();
+              return (
+                <TouchableOpacity
+                  key={d.toISOString()}
+                  onPress={() => setSelectedDate(new Date(d))}
+                  style={[styles.dayChip, isSelected && styles.dayChipSelected]}
+                >
+                  <Text
+                    style={[
+                      styles.dayChipWeek,
+                      isSelected && styles.dayChipWeekSelected,
+                    ]}
+                  >
+                    {d
+                      .toLocaleDateString(undefined, { weekday: "short" })
+                      .slice(0, 2)}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.dayChipDate,
+                      isSelected && styles.dayChipDateSelected,
+                    ]}
+                  >
+                    {String(d.getDate()).padStart(2, "0")}
+                  </Text>
+                  {isSelected && <View style={styles.dayChipDot} />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
         <View style={styles.content}>
           {loading ? (
             <Text style={{ textAlign: "center", marginTop: 40 }}>
               Loading...
             </Text>
-          ) : !sortedTrips || sortedTrips.length === 0 ? (
+          ) : !filteredTrips || filteredTrips.length === 0 ? (
             <Text style={{ textAlign: "center", marginTop: 40, color: "#888" }}>
               No trips found.
             </Text>
           ) : (
             <FlatList
-              data={sortedTrips}
+              data={filteredTrips}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TripCard trip={item} navigation={navigation} />
@@ -298,10 +418,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginTop: 8,
-    backgroundColor: "#e8f3fa",
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
   },
   driveTimeText: {
     fontSize: 12,
@@ -395,6 +511,74 @@ const styles = StyleSheet.create({
     color: "#0070F0",
     fontWeight: "bold",
     fontSize: 28,
+  },
+  stripHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  stripTitle: {
+    color: "#888",
+    fontSize: 14,
+  },
+  monthSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  monthArrowBtn: {
+    padding: 2,
+    marginHorizontal: 2,
+  },
+  monthLabel: {
+    color: "#222",
+    fontSize: 14,
+    fontWeight: "600",
+    marginHorizontal: 6,
+  },
+  dayChip: {
+    width: 64,
+    height: 84,
+    borderRadius: 16,
+    backgroundColor: "#eee",
+    marginRight: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayChipSelected: {
+    backgroundColor: "#e3f2fd",
+    borderWidth: 1,
+    borderColor: "#bbdefb",
+  },
+  dayChipWeek: {
+    color: "#999",
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  dayChipWeekSelected: {
+    color: "#1565c0",
+    fontWeight: "700",
+  },
+  dayChipDate: {
+    color: "#666",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  dayChipDateSelected: {
+    color: "#1565c0",
+  },
+  dayChipDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#1e88e5",
+    marginTop: 6,
   },
 });
 
