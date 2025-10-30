@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -72,80 +72,97 @@ const Profile = () => {
     );
   };
 
+  const formatHours = (value?: number | null) => {
+    if (value === null || value === undefined || isNaN(Number(value))) return "0 Hrs";
+    const n = Number(value);
+    const hours = n > 500 ? Math.round(n / 60) : Math.round(n);
+    return `${hours} Hrs`;
+  };
+
+  const sinceDate=user?.dateOfJoining ? new Date(user.dateOfJoining).toLocaleDateString() : user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "--";
+  const loginTimeText = formatHours(user.totalCheckinTime as number);
+  const driveTimeText = formatHours(user.totalDriveTime as number);
+  const distanceText = `${Math.round(Number(user.totalDistance || 0))} Kms`;
+  const safetyPercent = Math.max(0, Math.min(100, Number(user?.safetyScore ?? 0)));
+
   return (
     <View style={styles.container}>
       <Header />
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: 90 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.sectionTitle}>Personal Details</Text>
-        <View style={styles.avatarWrapper}>
-          {imgLoading ? (
-            <ActivityIndicator
-              size={36}
-              color="#111"
-              style={styles.avatarImg}
-            />
-          ) : driverImg ? (
-            <Image source={{ uri: driverImg }} style={styles.avatarImg} />
-          ) : (
-            <View style={styles.avatar} />
-          )}
-        </View>
-        <Text style={styles.name}>
-          {user.firstName} {user.lastName}
-        </Text>
-        <Text style={styles.role}>{"Driver"}</Text>
-        <Text style={styles.since}>
-          Since {user.dateOfJoining || user.createdAt}
-        </Text>
-
-        <Text style={styles.labelSection}>Account</Text>
-        <View style={styles.infoBox}>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Name</Text>
-            <Text style={styles.value}>
-              {user.firstName} {user.lastName}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Gender</Text>
-            <Text style={styles.value}>{user.gender}</Text>
-          </View>
-        </View>
-
-        <Text style={styles.labelSection}>Contact</Text>
-        <View style={styles.infoBox}>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Mobile</Text>
-            <Text style={styles.value}>{user.phoneNumber}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Email</Text>
-            <Text style={styles.value}>{user.email}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Permanent Address</Text>
-            <Text style={styles.value}>{user.permanentAddress}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Mailing Address</Text>
-            <Text style={styles.value}>{user.mailingAddress}</Text>
-          </View>
-        </View>
-
-        <Text style={styles.labelSection}>More</Text>
-        <View style={styles.infoBox}>
-          <TouchableOpacity style={styles.signOutRow} onPress={handleSignOut}>
-            <Text style={styles.signOutText}>Sign out</Text>
-            <View style={styles.signOutIcon}>
-              <Text style={{ fontSize: 18 }}>⏎</Text>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 95 }]} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileCard}>
+          <View style={styles.profileLeft}>
+            {imgLoading ? (
+              <ActivityIndicator size={36} color="#111" style={styles.avatarImg} />
+            ) : driverImg ? (
+              <Image source={{ uri: driverImg }} style={styles.avatarImg} />
+            ) : (
+              <View style={styles.avatar} />
+            )}
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={styles.name}>{user.firstName} {user.lastName}</Text>
+              <Text style={styles.sinceText}>Since {sinceDate}</Text>
             </View>
+          </View>
+          <View style={styles.profileDivider} />
+          <View style={styles.contactRow}>
+            <Text style={styles.contactIcon}>📞</Text>
+            <Text style={styles.contactValueSmall}>{user.phoneNumber || "--"}</Text>
+          </View>
+          <View style={styles.contactRow}>
+            <Text style={styles.contactIcon}>✉️</Text>
+            <Text style={styles.contactValueSmall}>{user.email || "--"}</Text>
+          </View>
+          <View style={[styles.contactRow, { borderBottomWidth: 0 }]}>
+            <Text style={styles.contactIcon}>📍</Text>
+            <Text style={styles.contactValueSmall}>{user.mailingAddress?.slice(0, 40) || user.permanentAddress?.slice(0, 40) || user.city || "--"}</Text>
+          </View>
+        </View>
+
+        {/* Stats */}
+        <View style={styles.statsCard}>
+          <Text style={styles.statsTitle}>My Stats</Text>
+          <View style={styles.scoreWrap}>
+            <View style={styles.scoreCircleOuter}>
+              <View
+                style={[
+                  styles.scoreFill,
+                  { width: 200 * (safetyPercent / 100) },
+                ]}
+              />
+              <View style={styles.scoreCircleInner}>
+                <Text style={styles.scoreValue}>{user?.safetyScore? Number(user.safetyScore).toFixed(0) : "N/A"}%</Text>
+                <Text style={styles.scoreLabel}>My Score</Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.miniStatsRow}>
+            <View style={styles.miniStatBox}>
+              <View style={styles.miniIconWrap}><Text style={styles.miniIcon}>⏱️</Text></View>
+              <Text style={styles.miniValue}>{loginTimeText}</Text>
+              <Text style={styles.miniLabel}>Total Login Time</Text>
+            </View>
+            <View style={styles.miniStatBox}>
+              <View style={styles.miniIconWrap}><Text style={styles.miniIcon}>🛞</Text></View>
+              <Text style={styles.miniValue}>{driveTimeText}</Text>
+              <Text style={styles.miniLabel}>Total Drive Time</Text>
+            </View>
+            <View style={styles.miniStatBox}>
+              <View style={styles.miniIconWrap}><Text style={styles.miniIcon}>🧭</Text></View>
+              <Text style={styles.miniValue}>{distanceText}</Text>
+              <Text style={styles.miniLabel}>Total Distance</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Logout */}
+        <View style={{ alignItems: "center", marginTop: 12 }}>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleSignOut}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+          <TouchableOpacity >
+            <Text style={styles.deactivate}>Deactivate Account</Text>
           </TouchableOpacity>
         </View>
-
-        <View style={{ height: 24 }} />
       </ScrollView>
       <Modal
         visible={modalVisible}
@@ -184,17 +201,17 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 32,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    textAlign: "center",
+  profileCard: {
+    backgroundColor: "#e9f2ff",
+    borderRadius: 14,
+    padding: 16,
     marginTop: 8,
-    marginBottom: 8,
-    color: "#222",
   },
-  avatarWrapper: {
+  profileLeft: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    flex: 1,
+    marginBottom: 6,
   },
   avatar: {
     width: 80,
@@ -207,105 +224,125 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    marginBottom: 8,
+    marginBottom: 0,
     resizeMode: "cover",
   },
   name: {
-    fontSize: 22,
-    fontWeight: "bold",
-    textAlign: "center",
-    color: "#222",
-  },
-  role: {
-    fontSize: 15,
-    color: "#888",
-    textAlign: "center",
-    marginTop: 2,
-  },
-  since: {
-    fontSize: 13,
-    color: "#aaa",
-    textAlign: "center",
-    marginTop: 5,
-    marginBottom: 12,
-  },
-  labelSection: {
-    fontSize: 13,
-    color: "#888",
-    marginTop: 18,
-    marginBottom: 4,
-    fontWeight: "500",
-  },
-  infoBox: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginBottom: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 10,
-  },
-  label: {
-    fontSize: 15,
-    color: "#222",
-    fontWeight: "500",
-    flex: 1,
-  },
-  value: {
-    fontSize: 15,
-    color: "#888",
-    maxWidth: 180,
-    textAlign: "right",
-    flex: 1,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#eee",
-    marginHorizontal: -12,
-  },
-  actionRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 14,
-  },
-  actionText: {
-    fontSize: 16,
-    color: "#222",
-  },
-  arrow: {
     fontSize: 18,
-    color: "#bbb",
     fontWeight: "bold",
+    color: "#222",
   },
-  signOutRow: {
+  sinceText: {
+    fontSize: 12,
+    color: "#445",
+    marginTop: 4,
+  },
+  profileDivider: {
+    height: 1,
+    backgroundColor: "#d5e5ff",
+    marginVertical: 8,
+  },
+  contactRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
-    // borderTopWidth: 1,
-    borderTopColor: "#f2f2f2",
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#eee",
   },
-  signOutText: {
-    fontSize: 16,
-    color: "#e53935",
+  contactIcon: { fontSize: 16, width: 24 },
+  contactValue: { fontSize: 15, color: "#222" },
+  contactValueSmall: { fontSize: 13.5, color: "#222" },
+  statsCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  statsTitle: {
+    fontSize: 18,
     fontWeight: "600",
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 8,
   },
-  signOutIcon: {
-    borderWidth: 1.5,
-    borderColor: "#e53935",
-    borderRadius: 6,
-    padding: 2,
-    marginLeft: 8,
+  scoreWrap: { alignItems: "center", marginVertical: 8 },
+  scoreCircleOuter: {
+    width: 200,
+    height: 100,
+    borderTopLeftRadius: 200,
+    borderTopRightRadius: 200,
+    backgroundColor: "#e9edf2",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    position: "relative",
   },
+  scoreFill: {
+    position: "absolute",
+    left: 0,
+    bottom: 0,
+    height: 100,
+    backgroundColor: "#4caf50",
+    zIndex: 1,
+  },
+  scoreCircleInner: {
+    width: 180,
+    height: 90,
+    borderTopLeftRadius: 180,
+    borderTopRightRadius: 180,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+  },
+  scoreValue: { fontSize: 28, fontWeight: "700", color: "#0d47a1" },
+  scoreLabel: { fontSize: 14, color: "#667" },
+  miniStatsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 12,
+  },
+  miniStatBox: {
+    flex: 1,
+    backgroundColor: "#f7f9fc",
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginHorizontal: 6,
+    alignItems: "center",
+  },
+  miniIconWrap: {
+    backgroundColor: "#eaf2ff",
+    borderRadius: 28,
+    width: 56,
+    height: 56,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  miniIcon: { fontSize: 20 },
+  miniValue: { fontSize: 16, fontWeight: "700", color: "#0d47a1" },
+  miniLabel: { fontSize: 10, color: "#667", marginTop: 2 },
+  logoutButton: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#f2d7d7",
+    width: 180,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  logoutText: { color: "#e53935", fontSize: 16, fontWeight: "600" },
+  deactivate: { marginTop: 16, color: "#d32f2f", fontSize: 14 },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.3)",

@@ -126,47 +126,31 @@ const VehicleSelectorModal: React.FC<VehicleSelectorModalProps> = (
               data={filteredVehicles}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <View style={styles.vehicleCard}>
-                  <View style={styles.vehicleInfoLeft}>
-                    <View style={styles.availablePill}>
-                      <Text style={styles.availablePillText}>Available</Text>
-                    </View>
-                    <View style={styles.infoRow}>
-                      <VehicleIcon />
-                      <View style={styles.infoTextBlock}>
-                        <Text style={styles.infoLabel}>Usage Type</Text>
-                        <Text style={styles.infoValue}>
-                          {item.usageType || item.type}
-                        </Text>
+                <View style={styles.vehicleCardNew}>
+                  <View style={styles.cardGridRow}>
+                    <View style={styles.gridCol}>
+                      <Text style={styles.gridValue}>
+                        {item.licensePlate || item.registration?.trNumber || "--"}
+                      </Text>
+                      <View style={styles.gridLabelRow}>
+                        <LicensePlateIcon />
+                        <Text style={styles.bottomLabel}>Vehicle No.</Text>
                       </View>
                     </View>
-                    <View style={styles.infoRow}>
-                      <LicensePlateIcon />
-                      <View style={styles.infoTextBlock}>
-                        <Text style={styles.infoLabel}>License Plate</Text>
-                        <Text style={styles.infoValue}>
-                          {item.licensePlate || item.registration?.trNumber}
-                        </Text>
+                    <View style={styles.gridCol}>
+                      <Text style={styles.gridValue}>
+                        {item?.location?.soc != null ? `${item.location.soc}%` : "--"}
+                      </Text>
+                      <View style={styles.gridLabelRow}>
+                        <BatteryChargeIcon />
+                        <Text style={styles.bottomLabel}>Charge</Text>
                       </View>
                     </View>
-                    <View style={styles.infoRow}>
-                      <BatteryChargeIcon />
-                      <View style={styles.infoTextBlock}>
-                        <Text style={styles.infoLabel}>Battery Charge</Text>
-                        <Text style={styles.infoValue}>
-                          {item?.location?.soc
-                            ? item?.location?.soc + "%"
-                            : "--"}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                  <View style={styles.vehicleInfoRight}>
                     <TouchableOpacity
                       onPress={() => handleGetVehicle(item)}
-                      style={styles.getButton}
+                      style={styles.arrowBtn}
                     >
-                      <Text style={styles.getButtonText}>Get Vehicle</Text>
+                      <Text style={styles.arrowIcon}>→</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -252,6 +236,58 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
+  },
+  vehicleCardNew: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    marginBottom: 12,
+    padding: 14,
+  },
+  cardGridRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  gridCol: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  gridValue: {
+    fontSize: 18,
+    fontWeight: "400",
+    color: "#222",
+    marginBottom: 6,
+  },
+  gridLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  arrowBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#1877f2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  arrowIcon: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  cardBottomRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  bottomItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  bottomLabel: {
+    color: "#9e9e9e",
+    marginLeft: 8,
+    fontSize: 13,
   },
   vehicleInfoLeft: {
     flex: 1,

@@ -41,6 +41,20 @@ const getWeekday = (dateStr: string) => {
   return d.toLocaleDateString(undefined, { weekday: "long" });
 };
 
+const formatDateShort = (dateStr: string) => {
+  if (!dateStr) return "--/--/----";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-GB");
+};
+
+const formatHoursMinutesFromSeconds = (sec?: number | string) => {
+  if (sec == null || isNaN(Number(sec))) return "--";
+  const total = Math.max(0, Number(sec));
+  const h = String(Math.floor(total / 3600)).padStart(2, "0");
+  const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  return `${h}:${m}`;
+};
+
 export const TripCard = ({
   trip,
   navigation,
@@ -63,54 +77,97 @@ export const TripCard = ({
 
   return (
     <View style={styles.tripCard}>
-      <View style={{ flexDirection: "row", alignItems: "center", padding: 10 }}>
+      <View style={styles.cardHeader}>
         <View style={styles.vehicleImg}>
-          <MaterialCommunityIcons
-            name="car"
-            size={42}
-            color="#888"
-            style={{ alignSelf: "center" }}
-          />
+          <MaterialCommunityIcons name="car" size={42} color="#888" />
         </View>
-        <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={{ color: "#888", fontSize: 13 }}>Vehicle</Text>
+        <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.licensePlate}>
             {trip.vehicle?.licensePlate || "--"}
           </Text>
+          <View
+            style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}
+          >
+            <MaterialCommunityIcons
+              name="card-text-outline"
+              size={16}
+              color="#b0b0b0"
+            />
+            <Text style={styles.vehicleNoLabel}> Vehicle No.</Text>
+          </View>
         </View>
         {navigation && (
           <TouchableOpacity onPress={handlePress}>
-            <Text style={styles.viewLink}>{backButton ? "Back" : "View"}</Text>
+            <Text style={styles.viewLink}>
+              {backButton ? "Back" : "View Details"}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
-      <View style={{ paddingHorizontal: 10, paddingBottom: 10 }}>
-        {/* <Text style={styles.weekdayText}>
-          <Text style={{ color: "#0047BA", fontWeight: "bold", fontSize: 18 }}>
-            {getWeekday(trip.tripStartDate)}
-          </Text>{" "}
-          <Text style={{ color: "#0047BA", fontWeight: "bold", fontSize: 18 }}>
-            {tripDate ? String(tripDate.getDate()).padStart(2, "0") : "--"}
+      <View style={styles.cardDivider} />
+      <View style={styles.timesRow}>
+        <View style={styles.timeCol}>
+          <View style={[styles.statusDot, { backgroundColor: "#2e7d32" }]}>
+            <MaterialCommunityIcons name="play" size={10} color="#fff" />
+          </View>
+          <Text style={styles.timeText}>{formatTime(trip.tripStartDate)}</Text>
+          <Text style={styles.dateMuted}>
+            {formatDateShort(trip.tripStartDate)}
           </Text>
-        </Text> */}
-        <View style={styles.checkRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.checkLabel}>Check In</Text>
-            <Text style={styles.checkText}>
-              {formatTime(trip.tripStartDate)}
-            </Text>
-          </View>
-          <View style={{ flex: 1, alignItems: "flex-end" }}>
-            <Text style={styles.checkLabel}>Check Out</Text>
-            <Text style={styles.checkText}>{formatTime(trip.tripEndDate)}</Text>
-          </View>
         </View>
-        <View style={styles.driveRow}>
-          <Text style={styles.driveTimeText}>
-            Drive Time {getDriveTime(trip.tripStartDate, trip.tripEndDate)}Hrs
+        <View style={styles.timeCol}>
+          <View style={[styles.statusDot, { backgroundColor: "#c62828" }]}>
+            <MaterialCommunityIcons name="close" size={10} color="#fff" />
+          </View>
+          <Text style={styles.timeText}>{formatTime(trip.tripEndDate)}</Text>
+          <Text style={styles.dateMuted}>
+            {formatDateShort(trip.tripEndDate)}
           </Text>
         </View>
       </View>
+      {navigation && (
+        <View style={styles.activityCardsRow}>
+          <View style={styles.activityCard}>
+            <Text style={styles.activityValue}>
+              {getDriveTime(trip.tripStartDate, trip.tripEndDate)}
+            </Text>
+            <View style={styles.activityIconRow}>
+              <MaterialCommunityIcons name="steering" size={18} color="#666" />
+              <Text style={styles.activityLabel}>Drive Time</Text>
+            </View>
+          </View>
+          <View style={styles.activityCard}>
+            <Text style={styles.activityValue}>
+              {typeof trip?.distance === "number"
+                ? `${trip.distance} Kms`
+                : "-- Kms"}
+            </Text>
+            <View style={styles.activityIconRow}>
+              <MaterialCommunityIcons
+                name="map-marker-distance"
+                size={18}
+                color="#666"
+              />
+              <Text style={styles.activityLabel}>Distance</Text>
+            </View>
+          </View>
+          <View style={styles.activityCard}>
+            <Text style={styles.activityValue}>
+              {formatHoursMinutesFromSeconds(
+                (trip as any)?.idletime ?? (trip as any)?.idleTime
+              )}
+            </Text>
+            <View style={styles.activityIconRow}>
+              <MaterialCommunityIcons
+                name="clock-outline"
+                size={18}
+                color="#666"
+              />
+              <Text style={styles.activityLabel}>Idle Time</Text>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -234,7 +291,7 @@ const Trip = () => {
     <View style={styles.container}>
       <Header />
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 85 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Date strip */}
@@ -372,9 +429,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e0e0e0",
   },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 8,
+  },
   vehicleImg: {
-    width: 48,
-    height: 48,
+    width: 42,
+    height: 42,
     borderRadius: 8,
     backgroundColor: "#e0e0e0",
   },
@@ -387,11 +451,82 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#222",
   },
+  vehicleNoLabel: {
+    color: "#9e9e9e",
+    fontSize: 13,
+  },
   viewLink: {
     color: "#0047BA",
     fontWeight: "600",
-    fontSize: 15,
+    fontSize: 14,
     textDecorationLine: "underline",
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: "#e0e0e0",
+    marginHorizontal: 10,
+  },
+  timesRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  timeCol: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statusDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  timeText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#222",
+    marginRight: 10,
+  },
+  dateMuted: {
+    fontSize: 12,
+    color: "#9e9e9e",
+  },
+  activityCardsRow: {
+    flexDirection: "row",
+    width: "100%",
+    justifyContent: "space-between",
+    paddingHorizontal: 10,
+    paddingBottom: 12,
+  },
+  activityCard: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 10,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  activityValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#222",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  activityIconRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activityLabel: {
+    fontSize: 12,
+    color: "#666",
+    marginLeft: 6,
   },
   weekdayText: {
     marginTop: 2,

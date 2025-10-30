@@ -8,13 +8,13 @@ import {
   ScrollView,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { storageService } from "../services/api/storage.service";
 import Header from "../components/ui/Header";
 import { showErrorToast, showSuccessToast } from "../services/ui/toasts";
 import { backendService } from "../services/api/backend.service";
 import { useUserStore } from "../store/user.store";
 import { CommonActions } from "@react-navigation/native";
-import OrderDataModal from "../components/ui/OrderDataModal";
 import PaymentProofModal from "../components/ui/PaymentProofModal";
 
 const sides = [
@@ -58,7 +58,6 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
   });
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"checkin" | "checkout">("checkin");
-  const [orderModalVisible, setOrderModalVisible] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const { fetchUser, inProgressTrip } = useUserStore();
 
@@ -81,15 +80,27 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
       let result = await ImagePicker.launchCameraAsync({
         mediaTypes: ["images"],
         quality: 0.5,
-        base64: true,
+        base64: false,
       });
-      if (!result.canceled && result.assets && result.assets[0].base64) {
+      if (!result.canceled && result.assets && result.assets[0].uri) {
         setLoading(true);
-        const base64 = `data:${result.assets[0].mimeType};base64,${result.assets[0].base64}`;
+        const originalUri = result.assets[0].uri;
+        const manipulated = await ImageManipulator.manipulateAsync(
+          originalUri,
+          [{ resize: { width: 1280 } }],
+          {
+            compress: 0.6,
+            format: ImageManipulator.SaveFormat.JPEG,
+            base64: true,
+          }
+        );
+        const base64 = manipulated.base64
+          ? `data:image/jpeg;base64,${manipulated.base64}`
+          : null;
         setImages((prev) => ({
           ...prev,
-          [side]: base64 ?? null,
-          [side + "Type"]: result.assets[0].mimeType ?? null,
+          [side]: base64,
+          [side + "Type"]: "image/jpeg",
         }));
         setLoading(false);
       }
@@ -172,43 +183,33 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
           setLoading(false);
         }
       } else {
-        setOrderModalVisible(true);
+        // Cargo: perform same end-trip flow as passenger (no order modal)
+        setLoading(true);
+        try {
+          const address = await storageService.getItem("userAddress");
+          const inProgressTripId = inProgressTrip?.id;
+          const payload = {
+            tripId: inProgressTripId,
+            address,
+            photo: images,
+          };
+          await backendService.checkOutForPassenger(payload);
+          await fetchUser();
+          showSuccessToast("Check-out successful!");
+          await storageService.removeItem("userAddress");
+          await storageService.removeItem("selectedVehicle");
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{ name: "MainTabs" }],
+            })
+          );
+        } catch (error) {
+          showErrorToast("Check-out failed");
+        } finally {
+          setLoading(false);
+        }
       }
-    }
-  };
-
-  const handleOrderDataConfirm = async (orders: any, paymentAmount: string) => {
-    try {
-      setLoading(true);
-      try {
-        const location = await storageService.getItem("userAddress");
-        const inProgressTripId = inProgressTrip?.id;
-        const payload = {
-          tripId: inProgressTripId,
-          address: location,
-          photo: images,
-          orders: orders,
-          totalCash: paymentAmount,
-        };
-        await backendService.checkOutForCargo(payload);
-        await fetchUser();
-        showSuccessToast("Check-out successful!");
-        await storageService.removeItem("userAddress");
-        await storageService.removeItem("selectedVehicle");
-        setOrderModalVisible(false);
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: "MainTabs" }],
-          })
-        );
-      } catch (err: any) {
-        showErrorToast(err?.response?.data?.message || "Check-out failed");
-      } finally {
-        setLoading(false);
-      }
-    } catch (error) {
-      showErrorToast("Failed to save order data");
     }
   };
 
@@ -294,20 +295,12 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
                   ? "Checking In..."
                   : "Check In"
                 : "Next"
-              : inProgressTrip?.vehicle?.usageType === "passenger"
-              ? loading
-                ? "Checking Out..."
-                : "Check Out"
-              : "Next"}
+              : loading
+              ? "Checking Out..."
+              : "Check Out"}
           </Text>
         </TouchableOpacity>
       </ScrollView>
-      <OrderDataModal
-        visible={orderModalVisible}
-        onConfirm={handleOrderDataConfirm}
-        onClose={() => setOrderModalVisible(false)}
-        loading={loading}
-      />
       <PaymentProofModal
         visible={paymentModalVisible}
         onConfirm={handlePaymentProofConfirm}

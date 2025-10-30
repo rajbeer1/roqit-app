@@ -64,16 +64,25 @@ const Home = () => {
     timerDisplay = formatTime(loginSeconds);
   }
   let driveSeconds = 0;
-  const tripStart = (inProgressTrip)?.tripStartDate || (inProgressTrip)?.tripStartTime;
+  const tripStart =
+    inProgressTrip?.tripStartDate || inProgressTrip?.tripStartTime;
   if (tripStart) {
     const diffSec = Math.floor(
       (currentTime.getTime() - new Date(tripStart).getTime()) / 1000
     );
     driveSeconds = diffSec > 0 ? diffSec : 0;
   }
-  const idleSeconds = Math.max(0, loginSeconds - driveSeconds);
+  const computedIdleSeconds = Math.max(0, loginSeconds - driveSeconds);
+  const rawIdleTime =
+    (inProgressTrip as any)?.idletime ?? (inProgressTrip as any)?.idleTime;
+  const parsedIdleTime =
+    rawIdleTime != null && !isNaN(Number(rawIdleTime))
+      ? Number(rawIdleTime)
+      : undefined;
+  const effectiveIdleSeconds =
+    parsedIdleTime !== undefined ? parsedIdleTime : computedIdleSeconds;
   const driveDisplay = formatHoursMinutes(driveSeconds);
-  const idleDisplay = formatHoursMinutes(idleSeconds);
+  const idleDisplay = formatHoursMinutes(effectiveIdleSeconds);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -363,14 +372,10 @@ const Home = () => {
             <Text style={styles.greeting}>
               {getGreeting()}! {user?.firstName}!
             </Text>
-
-            {/* Date and Activity Header */}
             <View style={styles.dateHeader}>
               <Text style={styles.dateText}>{formatDate()}</Text>
             </View>
             <Text style={styles.todayActivityText}>Today's Activity</Text>
-
-            {/* Login Time Card */}
             <View style={styles.timerCard}>
               <Text style={styles.timerDisplay}>
                 {user?.checkinStatus === "checked_in"
@@ -383,37 +388,7 @@ const Home = () => {
               </View>
             </View>
 
-            {inProgressTrip ? (
-              <View style={styles.slideRowCentered}>
-                {checkOutLoading ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="small" color="#B71C1C" />
-                    <Text style={styles.loadingText}>Checking location...</Text>
-                  </View>
-                ) : (
-                  <RNSwipeButton
-                    containerStyles={{
-                      width: SWIPE_WIDTH,
-                      alignSelf: "center",
-                      backgroundColor: "transparent",
-                    }}
-                    height={44}
-                    railBackgroundColor="#fff"
-                    thumbIconBackgroundColor="#B71C1C"
-                    title="Swipe to End trip"
-                    titleStyles={{
-                      color: "#888",
-                      fontWeight: "600",
-                      fontSize: 16,
-                    }}
-                    onSwipeSuccess={handleCheckOut}
-                    railFillBackgroundColor="#B71C1C"
-                    railFillBorderColor="#B71C1C"
-                    shouldResetAfterSuccess={true}
-                  />
-                )}
-              </View>
-            ) : user?.status === "active" ? (
+            {user?.status === "active" ? (
               <View style={styles.slideRowCentered}>
                 {driverCheckOutLoading ? (
                   <View style={styles.loadingContainer}>
@@ -425,11 +400,16 @@ const Home = () => {
                     containerStyles={{
                       width: SWIPE_WIDTH,
                       alignSelf: "center",
-                      backgroundColor: "transparent",
+                      backgroundColor: "#fff",
+                      borderColor: "#B71C1C",
+                      borderWidth: 1,
+                      borderRadius: 16,
                     }}
-                    height={44}
+                    height={56}
                     railBackgroundColor="#fff"
                     thumbIconBackgroundColor="#B71C1C"
+                    thumbIconBorderColor="#B71C1C"
+                    thumbIconStyles={{ borderRadius: 16 }}
                     title="Swipe to Check out"
                     titleStyles={{
                       color: "#888",
@@ -484,7 +464,9 @@ const Home = () => {
                   </View>
                 </View>
                 <View style={styles.activityCard}>
-                  <Text style={styles.activityValue}>{user?.distanceCovered|| '--'} Kms</Text>
+                  <Text style={styles.activityValue}>
+                    {user?.distanceCovered || "--"} Kms
+                  </Text>
                   <View style={styles.activityIconRow}>
                     <Icon name="map-marker-distance" size={20} color="#666" />
                     <Text style={styles.activityLabel}>Distance</Text>
@@ -498,6 +480,27 @@ const Home = () => {
                   </View>
                 </View>
               </View>
+              {inProgressTrip && (
+                <View style={styles.returnVehicleContainer}>
+                  {checkOutLoading ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size="small" color="#B71C1C" />
+                      <Text style={styles.loadingText}>
+                        Checking location...
+                      </Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.returnVehicleButton}
+                      onPress={handleCheckOut}
+                    >
+                      <Text style={styles.returnVehicleButtonText}>
+                        Return Vehicle
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
               <View>
                 {(inProgressTrip || user?.trip)?.stops &&
                   Array.isArray((inProgressTrip || user?.trip).stops) &&
@@ -607,18 +610,25 @@ const Home = () => {
                     {driverCheckInLoading ? (
                       <View style={styles.loadingContainer}>
                         <ActivityIndicator size="small" color="#fff" />
-                        <Text style={styles.loadingText}>Checking location...</Text>
+                        <Text style={styles.loadingText}>
+                          Checking location...
+                        </Text>
                       </View>
                     ) : (
                       <RNSwipeButton
                         containerStyles={{
                           width: SWIPE_WIDTH,
                           alignSelf: "center",
-                          backgroundColor: "transparent",
+                          backgroundColor: "#fff",
+                          borderColor: "#1565c0",
+                          borderWidth: 1,
+                          borderRadius: 16,
                         }}
-                        height={44}
+                        height={56}
                         railBackgroundColor="#fff"
                         thumbIconBackgroundColor="#1565c0"
+                        thumbIconBorderColor="#1565c0"
+                        thumbIconStyles={{ borderRadius: 16 }}
                         title="Swipe to Check-in"
                         titleStyles={{
                           color: "#888",
@@ -1151,7 +1161,6 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     paddingHorizontal: 16,
     alignItems: "center",
-
   },
   overlayTitle: {
     fontSize: 24,
@@ -1164,6 +1173,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#fff",
     marginBottom: 16,
+  },
+  returnVehicleContainer: {
+    width: "100%",
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  returnVehicleButton: {
+    width: Math.round(Dimensions.get("window").width * 0.7),
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#B71C1C",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  returnVehicleButtonText: {
+    color: "#B71C1C",
+    fontSize: 18,
+    fontWeight: "700",
   },
 });
 
