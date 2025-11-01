@@ -1,12 +1,13 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import { toastConfig } from "./src/services/ui/toasts";
 import { NavigationContainer } from "@react-navigation/native";
 import AppNavigator from "./src/navigation/AppNavigator";
-import { storageService } from "./src/services/api/storage.service";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { notificationService } from "./src/services/notification.service";
+import { useUserStore } from "./src/store/user.store";
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null; errorInfo: React.ErrorInfo | null }
@@ -121,10 +122,35 @@ const styles = StyleSheet.create({
 });
 
 export default function App() {
-  // (async () => {
-  //   const token = await storageService.clear();
+  const user = useUserStore((state) => state.user);
 
-  // })();
+  useEffect(() => {
+    const setupNotifications = async () => {
+      try {
+        if (user?.id) {
+          await notificationService.initialize(user.id);
+          const cleanup = notificationService.setupNotificationListeners();
+          return cleanup;
+        }
+      } catch (error) {
+        console.error('Error setting up notifications:', error);
+      }
+    };
+
+    let cleanup: (() => void) | undefined;
+    if (user?.id) {
+      setupNotifications().then((cleanupFn) => {
+        cleanup = cleanupFn;
+      });
+    }
+
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, [user?.id]);
+
   return (
     <ErrorBoundary>
       <GestureHandlerRootView>
