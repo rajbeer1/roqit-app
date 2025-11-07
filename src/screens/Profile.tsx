@@ -14,7 +14,8 @@ import Header from "../components/ui/Header";
 import { useUserStore } from "../store/user.store";
 import { useAuthStore } from "../store/auth.store";
 import { useNavigation, CommonActions } from "@react-navigation/native";
-import { fetchDriverImage } from "../services/api/backend.service";
+import { fetchDriverImage, backendService } from "../services/api/backend.service";
+import { showErrorToast, showSuccessToast } from "../services/ui/toasts";
 import { Mail } from "../components/icons/Mail";
 import { Phone } from "../components/icons/Phone";
 import { LocationPin } from "../components/icons/LocationPin";
@@ -27,6 +28,8 @@ const Profile = () => {
   const logout = useAuthStore((state) => state.logout);
   const navigation = useNavigation();
   const [modalVisible, setModalVisible] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [driverImg, setDriverImg] = useState<string | null>(null);
   const [imgLoading, setImgLoading] = useState(false);
 
@@ -78,6 +81,29 @@ const Profile = () => {
     );
   };
 
+  const handleDeleteAccount = () => {
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    try {
+      setDeleting(true);
+      await backendService.deleteUser();
+      showSuccessToast("Account deleted successfully");
+      setDeleteModalVisible(false);
+      await logout();
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: "Login" }],
+        })
+      );
+    } catch (error: any) {
+      showErrorToast(error.response?.data?.message || "Failed to delete account");
+      setDeleting(false);
+    }
+  };
+
   const formatHours = (value?: number | null) => {
     if (value === null || value === undefined || isNaN(Number(value))) return "0 Hrs";
     const n = Number(value);
@@ -94,7 +120,7 @@ const Profile = () => {
   return (
     <View style={styles.container}>
       <Header />
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 95 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 105 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.profileCard}>
           <View style={styles.profileLeft}>
             {imgLoading ? (
@@ -165,9 +191,9 @@ const Profile = () => {
           <TouchableOpacity style={styles.logoutButton} onPress={handleSignOut}>
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
-          {/* <TouchableOpacity >
-            <Text style={styles.deactivate}>Deactivate Account</Text>
-          </TouchableOpacity> */}
+          <TouchableOpacity onPress={handleDeleteAccount}>
+            <Text style={styles.deactivate}>Delete Account</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
       <Modal
@@ -188,6 +214,41 @@ const Profile = () => {
               </Pressable>
               <Pressable style={styles.yesButton} onPress={confirmSignOut}>
                 <Text style={styles.yesButtonText}>Yes</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !deleting && setDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalText}>Delete Account?</Text>
+            <Text style={styles.modalSubText}>
+              This action cannot be undone. All your data will be permanently deleted.
+            </Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.noButton, deleting && styles.disabledButton]}
+                onPress={() => !deleting && setDeleteModalVisible(false)}
+                disabled={deleting}
+              >
+                <Text style={styles.noButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.deleteButton, deleting && styles.disabledButton]}
+                onPress={confirmDeleteAccount}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.deleteButtonText}>Delete</Text>
+                )}
               </Pressable>
             </View>
           </View>
@@ -372,8 +433,14 @@ const styles = StyleSheet.create({
   modalText: {
     fontSize: 22,
     fontWeight: "500",
-    marginBottom: 24,
+    marginBottom: 12,
     color: "#222",
+  },
+  modalSubText: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 24,
+    textAlign: "center",
   },
   modalActions: {
     flexDirection: "row",
@@ -407,6 +474,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#fff",
     fontWeight: "600",
+  },
+  deleteButton: {
+    flex: 1,
+    borderRadius: 8,
+    paddingVertical: 10,
+    marginLeft: 8,
+    alignItems: "center",
+    backgroundColor: "#d32f2f",
+  },
+  deleteButtonText: {
+    fontSize: 18,
+    color: "#fff",
+    fontWeight: "600",
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });
 

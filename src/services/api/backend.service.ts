@@ -75,6 +75,10 @@ export const backendService = {
     );
     return response.data;
   },
+  deleteUser: async () => {
+    const response = await BackendApi.delete("/user");
+    return response.data;
+  },
 };
 
 export const fetchDriverImage = async (
