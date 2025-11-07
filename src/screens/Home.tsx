@@ -40,6 +40,7 @@ const Home = () => {
   const [checkOutLoading, setCheckOutLoading] = useState(false);
   const [driverCheckInLoading, setDriverCheckInLoading] = useState(false);
   const [driverCheckOutLoading, setDriverCheckOutLoading] = useState(false);
+  const overlayBottomGap = 0 ;
 
   const formatTime = (sec: number) => {
     const h = String(Math.floor(sec / 3600)).padStart(2, "0");
@@ -388,7 +389,8 @@ const Home = () => {
               </View>
             </View>
 
-            {user?.status === "active" ? (
+            {user?.status === "active" &&
+            user?.checkinStatus === "checked_in" ? (
               <View style={styles.slideRowCentered}>
                 {driverCheckOutLoading ? (
                   <View style={styles.loadingContainer}>
@@ -437,11 +439,25 @@ const Home = () => {
                     <Icon name="car" size={32} color="#999" />
                   </View>
                   <View style={styles.vehicleDetails}>
-                    <Text style={styles.vehicleNo}>
+                    <Text
+                      style={[
+                        styles.vehicleNo,
+                        !reservedVehicle?.licensePlate && styles.greyedOutText,
+                      ]}
+                    >
                       {reservedVehicle?.licensePlate || "Vehicle No."}
                     </Text>
-                    <Text style={styles.vehicleNo}>
-                      {`${user?.currentLocation?.soc || "SOC."}%` || "SOC."}
+                    <Text
+                      style={[
+                        styles.vehicleNo,
+                        !user?.currentLocation?.soc &&
+                          user?.currentLocation?.soc !== 0 &&
+                          styles.greyedOutText,
+                      ]}
+                    >
+                      {user?.currentLocation?.soc != null
+                        ? `${user.currentLocation.soc}%`
+                        : "SOC."}
                     </Text>
                   </View>
                   {user?.status === "active" && (
@@ -457,26 +473,78 @@ const Home = () => {
               </View>
               <View style={styles.activityCardsRow}>
                 <View style={styles.activityCard}>
-                  <Text style={styles.activityValue}>{driveDisplay}</Text>
-                  <View style={styles.activityIconRow}>
-                    <Icon name="steering" size={20} color="#666" />
-                    <Text style={styles.activityLabel}>Drive Time</Text>
-                  </View>
-                </View>
-                <View style={styles.activityCard}>
-                  <Text style={styles.activityValue}>
-                    {user?.distanceCovered || "--"} Kms
+                  <Text
+                    style={[
+                      styles.activityValue,
+                      !user?.trip && styles.greyedOutText,
+                    ]}
+                  >
+                    {driveDisplay}
                   </Text>
                   <View style={styles.activityIconRow}>
-                    <Icon name="map-marker-distance" size={20} color="#666" />
-                    <Text style={styles.activityLabel}>Distance</Text>
+                    <Icon
+                      name="steering"
+                      size={20}
+                      color={!user?.trip ? "#CCCCCC" : "#666"}
+                    />
+                    <Text
+                      style={[
+                        styles.activityLabel,
+                        !user?.trip && styles.greyedOutText,
+                      ]}
+                    >
+                      Drive Time
+                    </Text>
                   </View>
                 </View>
                 <View style={styles.activityCard}>
-                  <Text style={styles.activityValue}>{idleDisplay}</Text>
+                  <Text
+                    style={[
+                      styles.activityValue,
+                      !user?.trip && styles.greyedOutText,
+                    ]}
+                  >
+                    {user?.distanceCovered || "0"} Kms
+                  </Text>
                   <View style={styles.activityIconRow}>
-                    <Icon name="clock-outline" size={20} color="#666" />
-                    <Text style={styles.activityLabel}>Idle Time</Text>
+                    <Icon
+                      name="map-marker-distance"
+                      size={20}
+                      color={!user?.trip ? "#CCCCCC" : "#666"}
+                    />
+                    <Text
+                      style={[
+                        styles.activityLabel,
+                        !user?.trip && styles.greyedOutText,
+                      ]}
+                    >
+                      Distance
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.activityCard}>
+                  <Text
+                    style={[
+                      styles.activityValue,
+                      !user?.trip && styles.greyedOutText,
+                    ]}
+                  >
+                    {idleDisplay}
+                  </Text>
+                  <View style={styles.activityIconRow}>
+                    <Icon
+                      name="clock-outline"
+                      size={20}
+                      color={!user?.trip ? "#CCCCCC" : "#666"}
+                    />
+                    <Text
+                      style={[
+                        styles.activityLabel,
+                        !user?.trip && styles.greyedOutText,
+                      ]}
+                    >
+                      Idle Time
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -596,58 +664,69 @@ const Home = () => {
                 </View>
               </View>
             </Modal>
-            <Modal
-              visible={user?.checkinStatus === "checked_out"}
-              transparent
-              animationType="fade"
-            >
-              <View style={styles.overlayBackdrop}>
-                <View style={styles.overlayCard}>
-                  <Icon name="lock-outline" size={40} color="#fff" />
-                  <Text style={styles.overlayTitle}>Check-in</Text>
-                  <Text style={styles.overlaySubtitle}>to book a vehicle</Text>
-                  <View style={styles.slideRowCentered}>
-                    {driverCheckInLoading ? (
-                      <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="small" color="#fff" />
-                        <Text style={styles.loadingText}>
-                          Checking location...
-                        </Text>
-                      </View>
-                    ) : (
-                      <RNSwipeButton
-                        containerStyles={{
-                          width: SWIPE_WIDTH,
-                          alignSelf: "center",
-                          backgroundColor: "#fff",
-                          borderColor: "#1565c0",
-                          borderWidth: 1,
-                          borderRadius: 16,
-                        }}
-                        height={56}
-                        railBackgroundColor="#fff"
-                        thumbIconBackgroundColor="#1565c0"
-                        thumbIconBorderColor="#1565c0"
-                        thumbIconStyles={{ borderRadius: 16 }}
-                        title="Swipe to Check-in"
-                        titleStyles={{
-                          color: "#888",
-                          fontWeight: "600",
-                          fontSize: 16,
-                        }}
-                        onSwipeSuccess={handleDriverCheckIn}
-                        railFillBackgroundColor="#1565c0"
-                        railFillBorderColor="#1565c0"
-                        shouldResetAfterSuccess={true}
-                      />
-                    )}
-                  </View>
-                </View>
-              </View>
-            </Modal>
+
           </>
         )}
       </View>
+      {user?.checkinStatus === "checked_out" && (
+              <View
+                pointerEvents="box-none"
+                style={[
+                  styles.overlayFloatingContainer,
+                  { bottom: overlayBottomGap },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.overlayBackdrop,
+                  ]}
+                >
+                  <View style={styles.overlayCard}>
+                    <Icon name="lock-outline" size={40} color="#fff" />
+                    <Text style={styles.overlayTitle}>Check-in</Text>
+                    <Text style={styles.overlaySubtitle}>
+                      to book a vehicle
+                    </Text>
+                    <View style={styles.slideRowCentered}>
+                      {driverCheckInLoading ? (
+                        <View style={styles.loadingContainer}>
+                          <ActivityIndicator size="small" color="#fff" />
+                          <Text style={styles.loadingText}>
+                            Checking location...
+                          </Text>
+                        </View>
+                      ) : (
+                        <RNSwipeButton
+                          containerStyles={{
+                            width: SWIPE_WIDTH,
+                            alignSelf: "center",
+                            backgroundColor: "#fff",
+                            borderColor: "#1565c0",
+                            borderWidth: 1,
+                            borderRadius: 16,
+                          }}
+                          height={56}
+                          railBackgroundColor="#fff"
+                          thumbIconBackgroundColor="#1565c0"
+                          thumbIconBorderColor="#1565c0"
+                          thumbIconStyles={{ borderRadius: 16 }}
+                          title="Swipe to Check-in"
+                          titleStyles={{
+                            color: "#888",
+                            fontWeight: "600",
+                            fontSize: 16,
+                          }}
+                          onSwipeSuccess={handleDriverCheckIn}
+                          railFillBackgroundColor="#1565c0"
+                          railFillBorderColor="#1565c0"
+                          shouldResetAfterSuccess={true}
+                        />
+                      )}
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
     </View>
   );
 };
@@ -1154,6 +1233,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 16,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    overflow: "hidden",
+  },
+  overlayFloatingContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    zIndex: 20,
   },
   overlayCard: {
     width: "92%",
@@ -1193,6 +1282,9 @@ const styles = StyleSheet.create({
     color: "#B71C1C",
     fontSize: 18,
     fontWeight: "700",
+  },
+  greyedOutText: {
+    color: "#CCCCCC",
   },
 });
 

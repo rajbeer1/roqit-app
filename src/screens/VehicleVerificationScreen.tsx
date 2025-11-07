@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -14,8 +15,9 @@ import Header from "../components/ui/Header";
 import { showErrorToast, showSuccessToast } from "../services/ui/toasts";
 import { backendService } from "../services/api/backend.service";
 import { useUserStore } from "../store/user.store";
-import { CommonActions } from "@react-navigation/native";
+import { CommonActions, useNavigation } from "@react-navigation/native";
 import PaymentProofModal from "../components/ui/PaymentProofModal";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
 const sides = [
   {
@@ -45,6 +47,7 @@ const sides = [
 ];
 
 const VehicleVerificationScreen = ({ navigation, route }: any) => {
+  const nav = useNavigation();
   const [vehicle, setVehicle] = useState<any>(null);
   const [images, setImages] = useState<{ [key: string]: string | null }>({
     Front: null,
@@ -68,6 +71,19 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
       if (route?.params?.mode) setMode(route.params.mode);
     })();
   }, []);
+
+  const handleBack = () => {
+    if (nav.canGoBack()) {
+      nav.goBack();
+    } else {
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: "MainTabs" }],
+        })
+      );
+    }
+  };
 
   const pickImage = async (side: string) => {
     const { status: cameraStatus } =
@@ -249,6 +265,9 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
     <>
       <Header />
       <ScrollView contentContainerStyle={styles.container}>
+        <TouchableOpacity onPress={handleBack} activeOpacity={0.7}>
+          <Icon name="arrow-left" size={24} color="#222" />
+        </TouchableOpacity>
         <Text style={styles.title}>
           Click all 4 sides of vehicle for Verification
         </Text>
@@ -313,6 +332,25 @@ const VehicleVerificationScreen = ({ navigation, route }: any) => {
 };
 
 const styles = StyleSheet.create({
+  headerWrapper: {
+    position: "relative",
+  },
+  backButton: {
+    position: "absolute",
+    top: Platform.OS === "ios" ? 40 : 30,
+    left: 20,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   container: {
     flex: 1,
     padding: 16,

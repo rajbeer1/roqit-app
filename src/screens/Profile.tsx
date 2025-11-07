@@ -15,6 +15,12 @@ import { useUserStore } from "../store/user.store";
 import { useAuthStore } from "../store/auth.store";
 import { useNavigation, CommonActions } from "@react-navigation/native";
 import { fetchDriverImage } from "../services/api/backend.service";
+import { Mail } from "../components/icons/Mail";
+import { Phone } from "../components/icons/Phone";
+import { LocationPin } from "../components/icons/LocationPin";
+import { LoginTime } from "../components/icons/LoginTime";
+import { TotalDriveTime } from "../components/icons/TotalDriveTime";
+import { TotalDistance } from "../components/icons/TotalDistance";
 
 const Profile = () => {
   const { user, organisationId } = useUserStore();
@@ -105,15 +111,15 @@ const Profile = () => {
           </View>
           <View style={styles.profileDivider} />
           <View style={styles.contactRow}>
-            <Text style={styles.contactIcon}>📞</Text>
+            <Phone />
             <Text style={styles.contactValueSmall}>{user.phoneNumber || "--"}</Text>
           </View>
           <View style={styles.contactRow}>
-            <Text style={styles.contactIcon}>✉️</Text>
+            <Mail />
             <Text style={styles.contactValueSmall}>{user.email || "--"}</Text>
           </View>
           <View style={[styles.contactRow, { borderBottomWidth: 0 }]}>
-            <Text style={styles.contactIcon}>📍</Text>
+            <LocationPin />
             <Text style={styles.contactValueSmall}>{user.mailingAddress?.slice(0, 40) || user.permanentAddress?.slice(0, 40) || user.city || "--"}</Text>
           </View>
         </View>
@@ -137,17 +143,17 @@ const Profile = () => {
           </View>
           <View style={styles.miniStatsRow}>
             <View style={styles.miniStatBox}>
-              <View style={styles.miniIconWrap}><Text style={styles.miniIcon}>⏱️</Text></View>
+              <View style={styles.miniIconWrap}><LoginTime /></View>
               <Text style={styles.miniValue}>{loginTimeText}</Text>
               <Text style={styles.miniLabel}>Total Login Time</Text>
             </View>
             <View style={styles.miniStatBox}>
-              <View style={styles.miniIconWrap}><Text style={styles.miniIcon}>🛞</Text></View>
+              <View style={styles.miniIconWrap}><TotalDriveTime /></View>
               <Text style={styles.miniValue}>{driveTimeText}</Text>
               <Text style={styles.miniLabel}>Total Drive Time</Text>
             </View>
             <View style={styles.miniStatBox}>
-              <View style={styles.miniIconWrap}><Text style={styles.miniIcon}>🧭</Text></View>
+              <View style={styles.miniIconWrap}><TotalDistance /></View>
               <Text style={styles.miniValue}>{distanceText}</Text>
               <Text style={styles.miniLabel}>Total Distance</Text>
             </View>
@@ -159,9 +165,9 @@ const Profile = () => {
           <TouchableOpacity style={styles.logoutButton} onPress={handleSignOut}>
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
-          <TouchableOpacity >
+          {/* <TouchableOpacity >
             <Text style={styles.deactivate}>Deactivate Account</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </ScrollView>
       <Modal
@@ -202,12 +208,15 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   profileCard: {
-    backgroundColor: "#e9f2ff",
+
     borderRadius: 14,
     padding: 16,
     marginTop: 8,
   },
   profileLeft: {
+    borderRadius: 14,
+    padding: 16,
+    backgroundColor: "#e9f2ff",
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
@@ -251,7 +260,7 @@ const styles = StyleSheet.create({
   },
   contactIcon: { fontSize: 16, width: 24 },
   contactValue: { fontSize: 15, color: "#222" },
-  contactValueSmall: { fontSize: 13.5, color: "#222" },
+  contactValueSmall: { fontSize: 13.5, color: "#222", marginLeft: 8 },
   statsCard: {
     backgroundColor: "#fff",
     borderRadius: 14,
@@ -308,14 +317,14 @@ const styles = StyleSheet.create({
   },
   miniStatBox: {
     flex: 1,
-    backgroundColor: "#f7f9fc",
+    backgroundColor: "#E6F2FE",
     borderRadius: 12,
     paddingVertical: 14,
     marginHorizontal: 6,
     alignItems: "center",
   },
   miniIconWrap: {
-    backgroundColor: "#eaf2ff",
+    backgroundColor: "#fff",
     borderRadius: 28,
     width: 56,
     height: 56,

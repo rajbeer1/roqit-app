@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import { RootStackParamList } from "../navigation/AppNavigator";
 import Header from "../components/ui/Header";
 import { useUserStore } from "../store/user.store";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import { Play } from "../components/icons/Play";
+import { Close } from "../components/icons/Close";
 
 type TripScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -33,12 +35,6 @@ const getDriveTime = (start: string, end: string) => {
   return `${diffHrs.toString().padStart(2, "0")}:${diffMin
     .toString()
     .padStart(2, "0")}`;
-};
-
-const getWeekday = (dateStr: string) => {
-  if (!dateStr) return "--";
-  const d = new Date(dateStr);
-  return d.toLocaleDateString(undefined, { weekday: "long" });
 };
 
 const formatDateShort = (dateStr: string) => {
@@ -78,6 +74,19 @@ export const TripCard = ({
   return (
     <View style={styles.tripCard}>
       <View style={styles.cardHeader}>
+        {backButton && navigation && (
+          <TouchableOpacity
+            onPress={handlePress}
+            activeOpacity={0.7}
+            style={styles.backButton}
+          >
+            <MaterialCommunityIcons
+              name="arrow-left"
+              size={22}
+              color="#0047BA"
+            />
+          </TouchableOpacity>
+        )}
         <View style={styles.vehicleImg}>
           <MaterialCommunityIcons name="car" size={42} color="#888" />
         </View>
@@ -96,7 +105,7 @@ export const TripCard = ({
             <Text style={styles.vehicleNoLabel}> Vehicle No.</Text>
           </View>
         </View>
-        {navigation && (
+        {navigation && !backButton && (
           <TouchableOpacity onPress={handlePress}>
             <Text style={styles.viewLink}>
               {backButton ? "Back" : "View Details"}
@@ -108,7 +117,7 @@ export const TripCard = ({
       <View style={styles.timesRow}>
         <View style={styles.timeCol}>
           <View style={[styles.statusDot, { backgroundColor: "#2e7d32" }]}>
-            <MaterialCommunityIcons name="play" size={10} color="#fff" />
+            <Play />
           </View>
           <Text style={styles.timeText}>{formatTime(trip.tripStartDate)}</Text>
           <Text style={styles.dateMuted}>
@@ -117,7 +126,7 @@ export const TripCard = ({
         </View>
         <View style={styles.timeCol}>
           <View style={[styles.statusDot, { backgroundColor: "#c62828" }]}>
-            <MaterialCommunityIcons name="close" size={10} color="#fff" />
+            <Close />
           </View>
           <Text style={styles.timeText}>{formatTime(trip.tripEndDate)}</Text>
           <Text style={styles.dateMuted}>
@@ -125,7 +134,7 @@ export const TripCard = ({
           </Text>
         </View>
       </View>
-      {navigation && (
+      {backButton && (
         <View style={styles.activityCardsRow}>
           <View style={styles.activityCard}>
             <Text style={styles.activityValue}>
@@ -172,68 +181,9 @@ export const TripCard = ({
   );
 };
 
-const TripStats = ({
-  stats,
-}: {
-  stats: { loginTime: string; totalDistance: string; vehicles: string };
-}) => (
-  <View style={styles.statsRow}>
-    <View style={styles.statsCard}>
-      <Text style={styles.statsValue}>{stats.loginTime}</Text>
-      <Text style={styles.statsLabel}>Login Time</Text>
-    </View>
-    <View style={styles.statsCard}>
-      <Text style={styles.statsValue}>{stats.totalDistance}</Text>
-      <Text style={styles.statsLabel}>Total Distance</Text>
-    </View>
-    <View style={styles.statsCard}>
-      <Text style={styles.statsValue}>{stats.vehicles}</Text>
-      <Text style={styles.statsLabel}>Vehicles</Text>
-    </View>
-  </View>
-);
-
-const ScoreCard = ({
-  tripsUnder8Hours = "0",
-  totalTrips = 0,
-  score = "N/A",
-}) => (
-  <View style={styles.scoreCardContainer}>
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}
-    >
-      <View style={{ flex: 1 }}>
-        <Text style={styles.scoreCardTitle}>
-          Score - Vehicle reached on time
-        </Text>
-        <Text style={styles.scoreCardDays}>
-          <Text style={{ color: "#0070F0", fontWeight: "bold", fontSize: 24 }}>
-            {tripsUnder8Hours}/{totalTrips}
-          </Text>{" "}
-          <Text style={{ color: "#222", fontSize: 18 }}>days</Text>
-        </Text>
-      </View>
-      <View style={styles.scoreCardScoreBox}>
-        <Text style={styles.scoreCardScoreLabel}>Score</Text>
-        <Text style={styles.scoreCardScore}>{score}</Text>
-      </View>
-    </View>
-    <MaterialCommunityIcons
-      name="star-four-points-outline"
-      size={18}
-      color="#0070F0"
-      style={{ position: "absolute", top: 10, right: 10 }}
-    />
-  </View>
-);
-
 const Trip = () => {
   const navigation = useNavigation<TripScreenNavigationProp>();
-  const { trips, loading, stats, tripsUnder8Hours } = useUserStore();
+  const { trips, loading } = useUserStore();
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -287,6 +237,23 @@ const Trip = () => {
     });
   }, [sortedTrips, selectedDate]);
 
+  const daysWithTrips = useMemo(() => {
+    if (!sortedTrips || sortedTrips.length === 0) return [];
+
+    const daysSet = new Set<string>();
+    sortedTrips.forEach((trip) => {
+      if (trip.tripStartDate) {
+        const tripDate = new Date(trip.tripStartDate);
+        const dateKey = `${tripDate.getFullYear()}-${tripDate.getMonth()}-${tripDate.getDate()}`;
+        daysSet.add(dateKey);
+      }
+    });
+
+    return daysInMonth.filter((d) => {
+      const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      return daysSet.has(dateKey);
+    });
+  }, [sortedTrips, daysInMonth]);
   return (
     <View style={styles.container}>
       <Header />
@@ -372,7 +339,9 @@ const Trip = () => {
                   >
                     {String(d.getDate()).padStart(2, "0")}
                   </Text>
-                  {isSelected && <View style={styles.dayChipDot} />}
+                  {daysWithTrips.includes(d) && (
+                    <View style={styles.dayChipDot} />
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -433,8 +402,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 8,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   vehicleImg: {
     width: 42,
@@ -465,13 +434,14 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#e0e0e0",
     marginHorizontal: 10,
+    marginVertical: 4,
   },
   timesRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingVertical: 16,
   },
   timeCol: {
     flexDirection: "row",
@@ -500,7 +470,8 @@ const styles = StyleSheet.create({
     width: "100%",
     justifyContent: "space-between",
     paddingHorizontal: 10,
-    paddingBottom: 12,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
   activityCard: {
     flex: 1,
@@ -714,6 +685,22 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: "#1e88e5",
     marginTop: 6,
+  },
+  backButton: {
+    marginRight: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#f0f4ff",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#e3f2fd",
   },
 });
 

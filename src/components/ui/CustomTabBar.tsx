@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   tabBarContainer: {
     flexDirection: 'row',
     backgroundColor: '#fff',
-    borderRadius: 24,
+    borderRadius: 48,
     marginHorizontal: 16,
     marginBottom: 16,
     paddingHorizontal: 12,
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   activeIconWrapper: {
-    backgroundColor: '#000',
+    backgroundColor: '#0873DE',
     borderRadius: 24,
   },
   label: {
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   activeLabel: {
-    color: '#000',
+    color: '#0873DE',
   },
 });
 
