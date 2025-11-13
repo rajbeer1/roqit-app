@@ -17,7 +17,8 @@
         "NSCameraUsageDescription": "Roqit uses the camera to capture profile, document, and trip photos for verification and proof of service.",
         "NSPhotoLibraryUsageDescription": "Roqit needs access to your photo library to let you select existing images for profile, document uploads, and payment proofs.",
         "NSLocationWhenInUseUsageDescription": "Roqit uses your location while the app is in use to show nearby hubs, improve route accuracy, and attach location context to trips.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["remote-notification"]
       },
       "bundleIdentifier": "com.rajbeer11.roqitapp",
       "supportsTablet": true
@@ -65,7 +66,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Roqit to use your location."
+          "locationWhenInUsePermission": "Roqit uses your location while the app is in use to show nearby hubs, improve route accuracy, and attach location context to trips."
         }
       ],
       [
