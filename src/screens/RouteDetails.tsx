@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,11 @@ import { RootStackParamList } from "../navigation/AppNavigator";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { PhoneCircle } from "../components/icons/PhoneCircle";
 import { useUserStore } from "../store/user.store";
+import CompleteStopModal from "../components/ui/CompleteStopModal";
+import StopDetailsModal from "../components/ui/StopDetailsModal";
+import TripDetailsModal from "../components/ui/TripDetailsModal";
+import { backendService } from "../services/api/backend.service";
+import { showSuccessToast, showErrorToast } from "../services/ui/toasts";
 
 type RouteDetailsRouteProp = RouteProp<RootStackParamList, "RouteDetails">;
 type RouteDetailsNavigationProp = StackNavigationProp<RootStackParamList, "RouteDetails">;
@@ -42,6 +47,8 @@ interface TaskItem {
   customerName?: string;
   customerPhone?: string;
   isRoutePoint?: boolean;
+  latitude?: string;
+  longitude?: string;
 }
 
 interface TripGroup {
@@ -52,12 +59,20 @@ interface TripGroup {
 const RouteDetails = () => {
   const navigation = useNavigation<RouteDetailsNavigationProp>();
   const routeParams = useRoute<RouteDetailsRouteProp>();
-  const { route: routeData } = routeParams.params || {};
-  const { user } = useUserStore();
+  const { route: initialRouteData } = routeParams.params || {};
+  const { user, fetchUser } = useUserStore();
 
   const [activeTab, setActiveTab] = useState<"task" | "trip">("task");
+  const [completeModalVisible, setCompleteModalVisible] = useState(false);
+  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+  const [tripDetailsModalVisible, setTripDetailsModalVisible] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [routeData, setRouteData] = useState<any>(initialRouteData);
+
 
   const routeId = routeData?.id?.slice(-4)?.toUpperCase() || "----";
+  const routeStatus: string = routeData?.status || "";
   const currentStop: CurrentStop | null = routeData?.currentStop || null;
   const stops: Stop[] = routeData?.stops || [];
   const childTrips: string[] = routeData?.childTrips || [];
@@ -94,6 +109,11 @@ const RouteDetails = () => {
 
   // Check if a stop is completed (currentStop and all before it are completed)
   const isStopCompleted = (_stop: Stop, stopIndex: number): boolean => {
+    // If route is complete, all stops are completed
+    if (routeStatus === "Complete") {
+      return true;
+    }
+
     if (!currentStop || !currentStop.tripId) {
       return false;
     }
@@ -114,6 +134,9 @@ const RouteDetails = () => {
   const taskList: TaskItem[] = useMemo(() => {
     const tasks: TaskItem[] = [];
 
+    // If route is complete, all tasks are completed and none are active
+    const isRouteComplete = routeStatus === "Complete";
+
     // Find currentStop index to determine route start completion
     const currentStopIndex = currentStop?.tripId
       ? stops.findIndex(
@@ -124,10 +147,10 @@ const RouteDetails = () => {
     // Determine if route_start exists
     const hasRouteStart = !!routeStartAddress;
 
-    // Route start is completed if there's a currentStop (meaning we've moved past the start)
-    const isRouteStartCompleted = currentStopIndex >= 0;
-    // Route start is active only if no currentStop exists (first thing to do)
-    const isRouteStartActive = !currentStop?.tripId;
+    // Route start is completed if route is complete OR there's a currentStop (meaning we've moved past the start)
+    const isRouteStartCompleted = isRouteComplete || currentStopIndex >= 0;
+    // Route start is active only if route is in progress and no currentStop exists (first thing to do)
+    const isRouteStartActive = !isRouteComplete && !currentStop?.tripId;
 
     // Add route start address at the beginning
     if (routeStartAddress) {
@@ -137,12 +160,14 @@ const RouteDetails = () => {
         fullAddress: routeStartAddress,
         tripId: routeStartOriginalTripId,
         originalTripId: routeStartOriginalTripId,
-        pointType: "route_start",
+        pointType: "start",
         isCompleted: isRouteStartCompleted,
         isCurrentStop: isRouteStartActive,
         customerName: customer.name,
         customerPhone: customer.phone,
-        });
+        latitude: startAddressObj?.latitude,
+        longitude: startAddressObj?.longitude,
+      });
     }
 
     // Add all stops
@@ -150,15 +175,18 @@ const RouteDetails = () => {
       const shortAddress = stop.address.split(",")[0];
       const customer = getCustomerDetails(stop.tripId, stop.pointType);
 
+      // When route is complete, no stop is active
       // When currentStop is null and route_start exists, no stop should be active
       // When currentStop is null and NO route_start, first stop (index 0) should be active
       let isActive = false;
-      if (!currentStop?.tripId) {
-        // No currentStop - only active if no route_start and this is first stop
-        isActive = !hasRouteStart && index === 0;
-      } else {
-        // Has currentStop - next stop after currentStop is active
-        isActive = index === currentStopIndex + 1;
+      if (!isRouteComplete) {
+        if (!currentStop?.tripId) {
+          // No currentStop - only active if no route_start and this is first stop
+          isActive = !hasRouteStart && index === 0;
+        } else {
+          // Has currentStop - next stop after currentStop is active
+          isActive = index === currentStopIndex + 1;
+        }
       }
 
       tasks.push({
@@ -171,12 +199,15 @@ const RouteDetails = () => {
         isCurrentStop: isActive,
         customerName: customer.name,
         customerPhone: customer.phone,
+        latitude: stop.latitude,
+        longitude: stop.longitude,
       });
     });
 
     // Add route end address at the end
     if (routeEndAddress) {
-      // Route end is active if all stops are completed
+      // Route end is completed if route is complete
+      // Route end is active if all stops are completed and route is not complete
       const allStopsCompleted = stops.length > 0 && currentStopIndex === stops.length - 1;
       const customer = getCustomerDetails(routeEndOriginalTripId, "route_end");
       tasks.push({
@@ -184,16 +215,18 @@ const RouteDetails = () => {
         fullAddress: routeEndAddress,
         tripId: routeEndOriginalTripId || "route_end",
         originalTripId: routeEndOriginalTripId,
-        pointType: "route_end",
-        isCompleted: false,
-        isCurrentStop: allStopsCompleted,
+        pointType: "end",
+        isCompleted: isRouteComplete,
+        isCurrentStop: !isRouteComplete && allStopsCompleted,
         customerName: customer.name,
         customerPhone: customer.phone,
+        latitude: endAddressObj?.latitude,
+        longitude: endAddressObj?.longitude,
       });
     }
 
     return tasks;
-  }, [stops, currentStop, routeStartAddress, routeEndAddress, routeStartOriginalTripId, routeEndOriginalTripId]);
+  }, [stops, currentStop, routeStartAddress, routeEndAddress, routeStartOriginalTripId, routeEndOriginalTripId, routeStatus]);
 
   const currentTask = useMemo(() => {
     return taskList.find((task) => task.isCurrentStop) || taskList.find((task) => !task.isCompleted);
@@ -201,6 +234,23 @@ const RouteDetails = () => {
 
   const tripGroups: TripGroup[] = useMemo(() => {
     const groups: { [key: string]: Stop[] } = {};
+
+    // Add route start to its original trip if it has an originalTripId
+    if (routeStartAddress && routeStartOriginalTripId) {
+      if (!groups[routeStartOriginalTripId]) {
+        groups[routeStartOriginalTripId] = [];
+      }
+      groups[routeStartOriginalTripId].push({
+        latitude: startAddressObj?.latitude || "",
+        longitude: startAddressObj?.longitude || "",
+        address: routeStartAddress,
+        tripId: routeStartOriginalTripId,
+        pointType: "start",
+        originalTripId: routeStartOriginalTripId,
+      });
+    }
+
+    // Add all regular stops
     stops.forEach((stop) => {
       if (!groups[stop.tripId]) {
         groups[stop.tripId] = [];
@@ -208,11 +258,26 @@ const RouteDetails = () => {
       groups[stop.tripId].push(stop);
     });
 
+    // Add route end to its original trip if it has an originalTripId
+    if (routeEndAddress && routeEndOriginalTripId) {
+      if (!groups[routeEndOriginalTripId]) {
+        groups[routeEndOriginalTripId] = [];
+      }
+      groups[routeEndOriginalTripId].push({
+        latitude: endAddressObj?.latitude || "",
+        longitude: endAddressObj?.longitude || "",
+        address: routeEndAddress,
+        tripId: routeEndOriginalTripId,
+        pointType: "end",
+        originalTripId: routeEndOriginalTripId,
+      });
+    }
+
     return childTrips.map((tripId) => ({
       tripId,
       stops: groups[tripId] || [],
     }));
-  }, [stops, childTrips]);
+  }, [stops, childTrips, routeStartAddress, routeStartOriginalTripId, routeEndAddress, routeEndOriginalTripId, startAddressObj, endAddressObj]);
 
   const handleBack = () => {
     navigation.goBack();
@@ -232,8 +297,137 @@ const RouteDetails = () => {
     }
   };
 
-  const handleMarkComplete = () => {
-    console.log("Mark complete pressed");
+  const handleMarkComplete = (task: TaskItem) => {
+    setSelectedTask(task);
+    setCompleteModalVisible(true);
+  };
+
+  const handleCloseModal = () => {
+    setCompleteModalVisible(false);
+    setSelectedTask(null);
+  };
+
+  const handleOpenDetails = (task: TaskItem) => {
+    setSelectedTask(task);
+    setDetailsModalVisible(true);
+  };
+
+  const handleCloseDetailsModal = () => {
+    setDetailsModalVisible(false);
+    setSelectedTask(null);
+  };
+
+  const handleMarkCompleteFromDetails = () => {
+    // Close the details modal and open the complete modal
+    setDetailsModalVisible(false);
+    setCompleteModalVisible(true);
+  };
+
+  const handleOpenTripDetails = (tripId: string) => {
+    setSelectedTripId(tripId);
+    setTripDetailsModalVisible(true);
+  };
+
+  const handleCloseTripDetailsModal = () => {
+    setTripDetailsModalVisible(false);
+    setSelectedTripId(null);
+  };
+
+  const handleMarkCompleteFromTripDetails = (pointType: "start" | "end") => {
+    if (!selectedTripId) return;
+
+    // Find the task from taskList that matches this trip and pointType
+    const task = taskList.find(
+      (t) => (t.tripId === selectedTripId || t.originalTripId === selectedTripId) &&
+             (t.pointType === pointType || (pointType === "start" && t.pointType === "route_start") || (pointType === "end" && t.pointType === "route_end"))
+    );
+
+    if (task) {
+      setSelectedTask(task);
+      setTripDetailsModalVisible(false);
+      setCompleteModalVisible(true);
+    }
+  };
+
+  // Get trip details for the TripDetailsModal
+  const getSelectedTripDetails = () => {
+    if (!selectedTripId) return { pickup: null, drop: null };
+
+    // Find pickup and drop stops for this trip
+    const tripStops = taskList.filter(
+      (t) => t.tripId === selectedTripId || t.originalTripId === selectedTripId
+    );
+
+    const pickup = tripStops.find(
+      (t) => t.pointType === "start" || t.pointType === "route_start"
+    );
+    const drop = tripStops.find(
+      (t) => t.pointType === "end" || t.pointType === "route_end"
+    );
+
+    return {
+      pickup: pickup ? {
+        address: pickup.address,
+        fullAddress: pickup.fullAddress,
+        customerName: pickup.customerName,
+        customerPhone: pickup.customerPhone,
+        latitude: pickup.latitude,
+        longitude: pickup.longitude,
+        isCompleted: pickup.isCompleted,
+        isCurrentStop: pickup.isCurrentStop,
+        pointType: "start" as const,
+      } : null,
+      drop: drop ? {
+        address: drop.address,
+        fullAddress: drop.fullAddress,
+        customerName: drop.customerName,
+        customerPhone: drop.customerPhone,
+        latitude: drop.latitude,
+        longitude: drop.longitude,
+        isCompleted: drop.isCompleted,
+        isCurrentStop: drop.isCurrentStop,
+        pointType: "end" as const,
+      } : null,
+    };
+  };
+
+  const getDeliveryImages = (tripId: string) => {
+    const trip = user?.trips?.find((t: any) => t.id === tripId);
+    return trip?.deliveryDetails?.images || [];
+  };
+
+  const getRealImages = (tripId: string) => {
+    const trip = user?.trips?.find((t: any) => t.id === tripId);
+    return trip?.deliveryDetails?.realimages || [];
+  };
+
+  const handleSubmitComplete = async (data: {
+    routeId: string;
+    tripId: string;
+    originalTripId?: string;
+    pointType: string;
+    otp: string;
+    parcelImage?: string | null;
+  }) => {
+    try {
+      const response = await backendService.completeRoutePoint(data);
+
+      if (response.routeEnded) {
+        showSuccessToast("Route completed successfully!");
+        // Refresh user data to get updated route info
+        fetchUser();
+        // Navigate back since route is complete
+        navigation.goBack();
+      } else {
+        showSuccessToast("Stop completed successfully!");
+        // Refresh user data and navigate back to home
+        fetchUser();
+        navigation.goBack();
+      }
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to complete stop";
+      showErrorToast(errorMessage);
+    }
   };
 
   const getTripIdShort = (tripId: string, originalTripId?: string) => {
@@ -243,6 +437,20 @@ const RouteDetails = () => {
 
   const renderTaskView = () => (
     <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
+      {/* Show status message based on route status */}
+      {routeStatus === "Complete" && (
+        <View style={styles.statusMessageContainer}>
+          <MaterialCommunityIcons name="check-circle" size={24} color="#38AD51" />
+          <Text style={styles.statusMessageText}>All stops are completed</Text>
+        </View>
+      )}
+      {routeStatus !== "In Progress" && routeStatus !== "Complete" && (
+        <View style={styles.statusMessageContainer}>
+          <MaterialCommunityIcons name="information-outline" size={24} color="#8C8C8C" />
+          <Text style={styles.statusMessageText}>No stops completed yet</Text>
+        </View>
+      )}
+
       {taskList.map((task, index) => {
         const isActive = task.isCurrentStop;
         const isLastItem = index === taskList.length - 1;
@@ -302,7 +510,11 @@ const RouteDetails = () => {
               </View>
 
               {/* Task Content */}
-              <TouchableOpacity style={styles.taskContent} activeOpacity={0.7}>
+              <TouchableOpacity
+                style={styles.taskContent}
+                activeOpacity={0.7}
+                onPress={() => handleOpenDetails(task)}
+              >
                 <View style={styles.taskHeader}>
                   <View style={styles.taskHeaderLeft}>
                     <Text style={styles.taskAddress} numberOfLines={1}>
@@ -338,8 +550,8 @@ const RouteDetails = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Expanded Action Card - shown below the current active task */}
-            {isActive && !task.isRoutePoint && (
+            {/* Expanded Action Card - shown below the current active task only when route is In Progress */}
+            {isActive && !task.isRoutePoint && routeStatus === "In Progress" && (
               <View style={styles.expandedCardWrapper}>
                 <View style={styles.expandedCard}>
                   <View style={styles.customerRow}>
@@ -355,7 +567,7 @@ const RouteDetails = () => {
                   <View style={styles.actionButtons}>
                     <TouchableOpacity
                       style={styles.markCompleteButton}
-                      onPress={handleMarkComplete}
+                      onPress={() => handleMarkComplete(task)}
                     >
                       <MaterialCommunityIcons
                         name="check-circle-outline"
@@ -389,7 +601,22 @@ const RouteDetails = () => {
 
   const renderTripView = () => (
     <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
-      {currentTask && (
+      {/* Show status message based on route status */}
+      {routeStatus === "Complete" && (
+        <View style={styles.statusMessageContainer}>
+          <MaterialCommunityIcons name="check-circle" size={24} color="#38AD51" />
+          <Text style={styles.statusMessageText}>All stops are completed</Text>
+        </View>
+      )}
+      {routeStatus !== "In Progress" && routeStatus !== "Complete" && (
+        <View style={styles.statusMessageContainer}>
+          <MaterialCommunityIcons name="information-outline" size={24} color="#8C8C8C" />
+          <Text style={styles.statusMessageText}>No stops completed yet</Text>
+        </View>
+      )}
+
+      {/* Show Next Task card only when route is In Progress */}
+      {routeStatus === "In Progress" && currentTask && (
         <View style={styles.nextTaskSection}>
           <Text style={styles.sectionLabel}>Next Task</Text>
           <View style={styles.nextTaskCard}>
@@ -399,34 +626,35 @@ const RouteDetails = () => {
                 style={styles.callButton}
                 onPress={() => handleCall(currentTask.customerPhone || "")}
               >
-                <MaterialCommunityIcons name="phone" size={16} color="#fff" />
+                <PhoneCircle size={24} color="#0659AC" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.nextTaskAddress}>{currentTask.address}</Text>
+            <View style={styles.cardDivider} />
             <Text style={styles.nextTaskFullAddress} numberOfLines={1}>
               {currentTask.fullAddress}
             </Text>
             <View style={styles.taskMeta}>
-              <Text style={styles.taskTripId}>T:{getTripIdShort(currentTask.tripId)}</Text>
+              <Text style={styles.taskTripId}>T:{getTripIdShort(currentTask.tripId, currentTask.originalTripId)}</Text>
               <View
                 style={[
                   styles.taskTypeBadge,
-                  currentTask.pointType === "start" ? styles.pickupBadge : styles.dropBadge,
+                  (currentTask.pointType === "start" || currentTask.pointType === "route_start") ? styles.pickupBadge : styles.dropBadge,
                 ]}
               >
                 <Text
                   style={[
                     styles.taskTypeText,
-                    currentTask.pointType === "start" ? styles.pickupText : styles.dropText,
+                    (currentTask.pointType === "start" || currentTask.pointType === "route_start") ? styles.pickupText : styles.dropText,
                   ]}
                 >
-                  {currentTask.pointType === "start" ? "Pickup" : "Drop"}
+                  {(currentTask.pointType === "start" || currentTask.pointType === "route_start") ? "Pickup" : "Drop"}
                 </Text>
               </View>
             </View>
+            <View style={styles.cardDivider} />
             <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.markCompleteButton} onPress={handleMarkComplete}>
-                <MaterialCommunityIcons name="check-circle-outline" size={18} color="#4caf50" />
+              <TouchableOpacity style={styles.markCompleteButton} onPress={() => handleMarkComplete(currentTask)}>
+                <MaterialCommunityIcons name="check-circle-outline" size={16} color="#0873DE" />
                 <Text style={styles.markCompleteText}>Mark Complete</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -438,7 +666,7 @@ const RouteDetails = () => {
                   handleDirections(currentTask.fullAddress, stop?.latitude, stop?.longitude);
                 }}
               >
-                <MaterialCommunityIcons name="navigation" size={18} color="#fff" />
+                <MaterialCommunityIcons name="navigation-variant" size={16} color="#fff" />
                 <Text style={styles.directionsText}>Directions</Text>
               </TouchableOpacity>
             </View>
@@ -447,27 +675,66 @@ const RouteDetails = () => {
       )}
 
       <Text style={styles.sectionLabel}>All Trips</Text>
+
       {tripGroups.map((group) => {
         const tripShortId = getTripIdShort(group.tripId);
 
         return (
-          <View key={group.tripId} style={styles.tripCard}>
+          <TouchableOpacity
+            key={group.tripId}
+            style={styles.tripCard}
+            activeOpacity={0.7}
+            onPress={() => handleOpenTripDetails(group.tripId)}
+          >
             <View style={styles.tripCardHeader}>
               <Text style={styles.tripCardId}>T:{tripShortId}</Text>
-              <MaterialCommunityIcons name="chevron-right" size={20} color="#ccc" />
+              <MaterialCommunityIcons name="chevron-right" size={20} color="#262626" />
             </View>
             {group.stops.map((stop, stopIndex) => {
               // Find the global index of this stop in the stops array
               const globalStopIndex = stops.findIndex(
                 (s) => s.tripId === stop.tripId && s.pointType === stop.pointType
               );
-              const isCompleted = isStopCompleted(stop, globalStopIndex);
-              const shortAddress = stop.address.split(",")[0];
+
+              // Determine if this stop is completed
+              let isCompleted = false;
+
+              // If route is complete, all stops are completed
+              if (routeStatus === "Complete") {
+                isCompleted = true;
+              } else if (globalStopIndex !== -1) {
+                // Regular stop from stops array
+                isCompleted = isStopCompleted(stop, globalStopIndex);
+              } else {
+                // This is a route start or end address added to tripGroups
+                // Check if it matches the route's start or end address
+                const isRouteStart = stop.tripId === routeStartOriginalTripId && stop.pointType === "start";
+                const isRouteEnd = stop.tripId === routeEndOriginalTripId && stop.pointType === "end";
+
+                if (isRouteStart) {
+                  // Route start is completed if currentStop exists (we've moved past start)
+                  isCompleted = !!currentStop?.tripId;
+                } else if (isRouteEnd) {
+                  // Route end is completed only if currentStop matches the end address
+                  isCompleted = currentStop?.tripId === routeEndOriginalTripId && currentStop?.pointType === "end";
+                }
+              }
+              const isLastStop = stopIndex === group.stops.length - 1;
 
               return (
-                <View key={`${stop.tripId}-${stop.pointType}`} style={styles.tripStopRow}>
+                <View
+                  key={`${stop.tripId}-${stop.pointType}`}
+                  style={styles.tripStopRow}
+                >
                   <View style={styles.tripStopIndicator}>
-                    {stopIndex > 0 && <View style={styles.tripStopLine} />}
+                    {stopIndex > 0 && (
+                      <View
+                        style={[
+                          styles.tripStopLine,
+                          isCompleted ? styles.tripStopLineCompleted : styles.tripStopLineDefault,
+                        ]}
+                      />
+                    )}
                     <View
                       style={[
                         styles.tripStopDot,
@@ -475,22 +742,47 @@ const RouteDetails = () => {
                       ]}
                     >
                       {isCompleted && (
-                        <MaterialCommunityIcons name="check" size={10} color="#fff" />
+                        <MaterialCommunityIcons name="check" size={10} color="#38AD51" />
                       )}
                     </View>
+                    {!isLastStop && (
+                      <View
+                        style={[
+                          styles.tripStopLineBottom,
+                          isCompleted ? styles.tripStopLineCompleted : styles.tripStopLineDefault,
+                        ]}
+                      />
+                    )}
                   </View>
                   <View style={styles.tripStopContent}>
-                    <Text style={styles.tripStopAddress}>{shortAddress}</Text>
-                    <Text style={styles.tripStopFullAddress} numberOfLines={1}>
+                    <Text style={styles.tripStopAddress} numberOfLines={1}>
                       {stop.address}
                     </Text>
+                    <View style={styles.tripStopMeta}>
+                      <View
+                        style={[
+                          styles.taskTypeBadge,
+                          stop.pointType === "start" ? styles.pickupBadge : styles.dropBadge,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.taskTypeText,
+                            stop.pointType === "start" ? styles.pickupText : styles.dropText,
+                          ]}
+                        >
+                          {stop.pointType === "start" ? "Pickup" : "Drop"}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
               );
             })}
-          </View>
+          </TouchableOpacity>
         );
       })}
+
       <View style={styles.bottomPadding} />
     </ScrollView>
   );
@@ -525,6 +817,42 @@ const RouteDetails = () => {
       </View>
 
       {activeTab === "task" ? renderTaskView() : renderTripView()}
+
+      {/* Complete Modal */}
+      <CompleteStopModal
+        visible={completeModalVisible}
+        onClose={handleCloseModal}
+        task={selectedTask}
+        routeId={routeData?.id}
+        deliveryImages={getDeliveryImages(selectedTask?.originalTripId || selectedTask?.tripId || "")}
+        realImages={getRealImages(selectedTask?.originalTripId || selectedTask?.tripId || "")}
+        onSubmit={handleSubmitComplete}
+      />
+
+      {/* Stop Details Modal */}
+      <StopDetailsModal
+        visible={detailsModalVisible}
+        onClose={handleCloseDetailsModal}
+        task={selectedTask}
+        deliveryImages={getDeliveryImages(selectedTask?.originalTripId || selectedTask?.tripId || "")}
+        realImages={getRealImages(selectedTask?.originalTripId || selectedTask?.tripId || "")}
+        onMarkComplete={handleMarkCompleteFromDetails}
+        showMarkComplete={routeStatus === "In Progress" && selectedTask?.isCurrentStop === true}
+      />
+
+      {/* Trip Details Modal */}
+      <TripDetailsModal
+        visible={tripDetailsModalVisible}
+        onClose={handleCloseTripDetailsModal}
+        tripId={selectedTripId || ""}
+        pickup={getSelectedTripDetails().pickup}
+        drop={getSelectedTripDetails().drop}
+        deliveryImages={getDeliveryImages(selectedTripId || "")}
+        realImages={getRealImages(selectedTripId || "")}
+        onMarkComplete={handleMarkCompleteFromTripDetails}
+        showPickupMarkComplete={routeStatus === "In Progress" && getSelectedTripDetails().pickup?.isCurrentStop === true}
+        showDropMarkComplete={routeStatus === "In Progress" && getSelectedTripDetails().drop?.isCurrentStop === true}
+      />
     </View>
   );
 };
@@ -809,22 +1137,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   nextTaskCard: {
-    backgroundColor: "#fff",
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
+    paddingHorizontal: 24,
     borderWidth: 1,
-    borderColor: "#4285F4",
-  },
-  nextTaskAddress: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#262626",
-    marginBottom: 4,
+    borderColor: "#0873DE",
   },
   nextTaskFullAddress: {
-    fontSize: 13,
-    color: "#8C8C8C",
-    marginBottom: 12,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#262626",
+    lineHeight: 20,
   },
   tripCard: {
     backgroundColor: "#fff",
@@ -845,6 +1168,7 @@ const styles = StyleSheet.create({
   },
   tripStopRow: {
     flexDirection: "row",
+    alignItems: "center",
     marginLeft: 8,
   },
   tripStopIndicator: {
@@ -853,24 +1177,34 @@ const styles = StyleSheet.create({
   },
   tripStopLine: {
     width: 2,
-    height: 20,
-    backgroundColor: "#E0E0E0",
+    height: 16,
     position: "absolute",
-    top: -20,
+    top: -16,
+  },
+  tripStopLineBottom: {
+    width: 2,
+    flex: 1,
+    minHeight: 16,
+  },
+  tripStopLineCompleted: {
+    backgroundColor: "#38AD51",
+  },
+  tripStopLineDefault: {
+    backgroundColor: "#D9D9D9",
   },
   tripStopDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "#E0E0E0",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D9D9D9",
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
   },
   tripStopDotCompleted: {
-    backgroundColor: "#4caf50",
-    borderColor: "#4caf50",
+    backgroundColor: "#C5ECCD",
+    borderColor: "#C5ECCD",
   },
   tripStopContent: {
     flex: 1,
@@ -882,13 +1216,28 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#262626",
   },
-  tripStopFullAddress: {
-    fontSize: 12,
-    color: "#8C8C8C",
-    marginTop: 2,
+  tripStopMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
   },
   bottomPadding: {
     height: 100,
+  },
+  statusMessageContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F4F4F5",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    gap: 8,
+  },
+  statusMessageText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#262626",
   },
 });
 

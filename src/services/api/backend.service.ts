@@ -79,6 +79,17 @@ export const backendService = {
     const response = await BackendApi.delete("/user");
     return response.data;
   },
+  completeRoutePoint: async (data: {
+    routeId: string;
+    tripId: string;
+    originalTripId?: string;
+    pointType: string;
+    otp: string;
+    parcelImage?: string | null;
+  }) => {
+    const response = await BackendApi.post("/trips2/route/point", data);
+    return response.data;
+  },
 };
 
 export const fetchDriverImage = async (

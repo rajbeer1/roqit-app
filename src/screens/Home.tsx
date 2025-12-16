@@ -548,7 +548,7 @@ const Home = () => {
                   </View>
                 </View>
               </View>
-              {inProgressTrip && (
+              {inProgressTrip && inProgressTrip.triptype !== 'route' && (
                 <View style={styles.returnVehicleContainer}>
                   {checkOutLoading ? (
                     <View style={styles.loadingContainer}>

@@ -68,7 +68,11 @@ export const useUserStore = create<UserStoreState>()(
         const operationLng = user?.operation?.longitude ?? null;
         const geofenceRadius = user?.operation?.geofenceRadius ?? null;
         const organisationId = user?.organisationId ?? null;
-        const inProgressTrip = user?.inProgressTrip ?? null;
+        // First check for a route trip in progress from all trips, otherwise use inProgressTrip
+        const inProgressRouteTrip = user?.trips?.find(
+          (trip: any) => trip.triptype === 'route' && trip.status === 'In Progress'
+        );
+        const inProgressTrip = inProgressRouteTrip ?? user?.inProgressTrip ?? null;
         const reservedVehicle = user?.vehicle ?? null;
         const approvalStatus = user?.approvalStatus ?? null;
         const trips =
