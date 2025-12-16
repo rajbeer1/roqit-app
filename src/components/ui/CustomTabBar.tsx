@@ -7,6 +7,7 @@ const icons: Record<string, string> = {
   Home: 'home',
   Trip: 'map-marker-path',
   Profile: 'account',
+  Routes: 'routes',
 };
 
 const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {

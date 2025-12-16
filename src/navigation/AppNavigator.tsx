@@ -7,6 +7,7 @@ import HubCode from "../screens/onboarding/HubCode";
 import Home from "../screens/Home";
 import Trip from "../screens/Trip";
 import Profile from "../screens/Profile";
+import Routes from "../screens/Routes";
 import { storageService } from "../services/api/storage.service";
 import { View, ActivityIndicator } from "react-native";
 import CustomTabBar from "../components/ui/CustomTabBar";
@@ -21,6 +22,7 @@ import UnderReview from "../screens/onboarding/UnderReview";
 import ReviewRejected from "../screens/onboarding/ReviewRejected";
 import ImageSelector from "../screens/onboarding/userInfo/ImageSelector";
 import { IndividualTrip } from "../screens/IndividualTrip";
+import RouteDetails from "../screens/RouteDetails";
 import { useUserStore } from "../store/user.store";
 
 export type RootStackParamList = {
@@ -37,10 +39,12 @@ export type RootStackParamList = {
   MainTabs: undefined;
   VehicleVerification: undefined;
   IndividualTrip: { trip: any } | undefined;
+  RouteDetails: { route: any } | undefined;
 };
 
 export type TabParamList = {
   Home: undefined;
+  Routes: undefined;
   Trip: undefined;
   Profile: undefined;
 };
@@ -60,6 +64,7 @@ const MainTabs = () => (
     })}
   >
     <Tab.Screen name="Home" component={Home} />
+    <Tab.Screen name="Routes" component={Routes} />
     <Tab.Screen name="Trip" component={Trip} />
     <Tab.Screen name="Profile" component={Profile} />
   </Tab.Navigator>
@@ -121,6 +126,7 @@ const AppNavigator = () => {
       <Stack.Screen name="ImageSelector" component={ImageSelector} />
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="IndividualTrip" component={IndividualTrip} />
+      <Stack.Screen name="RouteDetails" component={RouteDetails} />
       <Stack.Screen
         name="VehicleVerification"
         component={VehicleVerificationScreen}

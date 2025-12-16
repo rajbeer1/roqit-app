@@ -504,7 +504,7 @@ const Home = () => {
                       !user?.trip && styles.greyedOutText,
                     ]}
                   >
-                    {user?.distanceCovered || "0"} Kms
+                    {user?.distanceCovered?.toFixed(0) || "0"} Kms
                   </Text>
                   <View style={styles.activityIconRow}>
                     <Icon
