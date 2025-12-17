@@ -15,6 +15,17 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Set up Android notification channel
+if (Platform.OS === "android") {
+  Notifications.setNotificationChannelAsync("default", {
+    name: "Default",
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: "#FF231F7C",
+    sound: "default",
+  });
+}
+
 export interface NotificationData {
   notificationId?: string;
   deeplink?: string;
