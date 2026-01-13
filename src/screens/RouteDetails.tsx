@@ -138,17 +138,27 @@ const RouteDetails = () => {
     const isRouteComplete = routeStatus === "Complete";
 
     // Find currentStop index to determine route start completion
-    const currentStopIndex = currentStop?.tripId
+    // First check if currentStop matches a stop in the stops array
+    let currentStopIndex = currentStop?.tripId
       ? stops.findIndex(
           (s) => s.tripId === currentStop.tripId && s.pointType === currentStop.pointType
         )
       : -1;
 
+    // Check if currentStop matches the route's startAddress or endAddress (for routes with empty stops array)
+    const isCurrentStopRouteStart = currentStop?.tripId === routeStartOriginalTripId && currentStop?.pointType === "start";
+    const isCurrentStopRouteEnd = currentStop?.tripId === routeEndOriginalTripId && currentStop?.pointType === "end";
+
     // Determine if route_start exists
     const hasRouteStart = !!routeStartAddress;
 
-    // Route start is completed if route is complete OR there's a currentStop (meaning we've moved past the start)
-    const isRouteStartCompleted = isRouteComplete || currentStopIndex >= 0;
+    // Route start is completed if:
+    // - Route is complete, OR
+    // - currentStop matches route start (it was completed), OR
+    // - currentStop is in the stops array (meaning we've moved past the start), OR
+    // - currentStop matches route end (meaning we've completed everything including start)
+    const isRouteStartCompleted = isRouteComplete || isCurrentStopRouteStart || currentStopIndex >= 0 || isCurrentStopRouteEnd;
+
     // Route start is active only if route is in progress and no currentStop exists (first thing to do)
     const isRouteStartActive = !isRouteComplete && !currentStop?.tripId;
 
@@ -206,9 +216,17 @@ const RouteDetails = () => {
 
     // Add route end address at the end
     if (routeEndAddress) {
-      // Route end is completed if route is complete
-      // Route end is active if all stops are completed and route is not complete
+      // Route end is completed if route is complete OR currentStop matches route end
+      const isRouteEndCompleted = isRouteComplete || isCurrentStopRouteEnd;
+
+      // Route end is active if:
+      // - Route is not complete AND
+      // - Either: all stops in stops array are completed (currentStopIndex === stops.length - 1)
+      // - OR: stops array is empty and route start is completed (for single-trip routes)
       const allStopsCompleted = stops.length > 0 && currentStopIndex === stops.length - 1;
+      const noStopsButStartCompleted = stops.length === 0 && isRouteStartCompleted && !isCurrentStopRouteEnd;
+      const isRouteEndActive = !isRouteComplete && (allStopsCompleted || noStopsButStartCompleted);
+
       const customer = getCustomerDetails(routeEndOriginalTripId, "route_end");
       tasks.push({
         address: routeEndAddress.split(",")[0],
@@ -216,8 +234,8 @@ const RouteDetails = () => {
         tripId: routeEndOriginalTripId || "route_end",
         originalTripId: routeEndOriginalTripId,
         pointType: "end",
-        isCompleted: isRouteComplete,
-        isCurrentStop: !isRouteComplete && allStopsCompleted,
+        isCompleted: isRouteEndCompleted,
+        isCurrentStop: isRouteEndActive,
         customerName: customer.name,
         customerPhone: customer.phone,
         latitude: endAddressObj?.latitude,
@@ -712,8 +730,12 @@ const RouteDetails = () => {
                 const isRouteEnd = stop.tripId === routeEndOriginalTripId && stop.pointType === "end";
 
                 if (isRouteStart) {
-                  // Route start is completed if currentStop exists (we've moved past start)
-                  isCompleted = !!currentStop?.tripId;
+                  // Route start is completed if:
+                  // - currentStop matches route start (it was explicitly completed), OR
+                  // - currentStop matches route end (meaning we've moved past start to end)
+                  const currentStopMatchesStart = currentStop?.tripId === routeStartOriginalTripId && currentStop?.pointType === "start";
+                  const currentStopMatchesEnd = currentStop?.tripId === routeEndOriginalTripId && currentStop?.pointType === "end";
+                  isCompleted = currentStopMatchesStart || currentStopMatchesEnd;
                 } else if (isRouteEnd) {
                   // Route end is completed only if currentStop matches the end address
                   isCompleted = currentStop?.tripId === routeEndOriginalTripId && currentStop?.pointType === "end";
